@@ -1,0 +1,24 @@
+{
+  "name": "censys-ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bunx vite",
+    "build": "bunx vite build",
+    "preview": "bunx vite preview",
+    "serve": "bun run server.ts"
+  },
+  "dependencies": {
+    "vue": "^3.4.0",
+    "vuetify": "^3.6.7",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "vite": "^7.1.0",
+    "@mdi/font": "^7.4.47",
+    "typescript": "^5.5.4",
+    "vite-plugin-vuetify": "^2.0.3"
+  }
+}

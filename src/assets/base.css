@@ -1,0 +1,14 @@
+:root{
+  --bg-0:#0E1217;
+  --bg-1:#141A22;
+  --edge:#1B2430;
+  --pri:#00E5A8;
+  --sec:#00C2FF;
+  --txt:#D9E2EC;
+}
+html,body,#app{height:100%;}
+body{margin:0;background:var(--bg-0);color:var(--txt);}
+/* subtle scrollbars */
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-thumb{background:#263241;border-radius:10px}
+*::-webkit-scrollbar-track{background:transparent}

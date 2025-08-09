@@ -1,0 +1,27 @@
+[
+  {
+    "url": "https://example.com",
+    "title": "Example Domain",
+    "description": "Just an example",
+    "labels": [
+      "swagger-ui"
+    ]
+  },
+  {
+    "url": "https://test.org",
+    "title": "Test Page",
+    "description": "",
+    "labels": [
+      "file-sharing",
+      "remote-access"
+    ]
+  },
+  {
+    "url": "http://demo.net",
+    "title": null,
+    "description": null,
+    "labels": [
+      "jquery"
+    ]
+  }
+]
