@@ -3,6 +3,7 @@
     <Loader3D :active="loading" />
 
     <v-app-bar
+      app
       flat
       :height="smAndDown ? 56 : 64"
       class="px-2"
@@ -39,10 +40,30 @@
       floating
     >
       <v-list density="comfortable" nav>
-        <v-list-item title="Assets" prepend-icon="mdi-lan" to="/assets" />
-        <v-list-item title="Hosts" prepend-icon="mdi-server" to="/hosts" />
-        <v-list-item title="Web" prepend-icon="mdi-web" to="/web" />
-        <v-list-item title="Data" prepend-icon="mdi-database" to="/data" />
+        <v-list-item
+          title="Assets"
+          prepend-icon="mdi-lan"
+          to="/assets"
+          :active="isRouteActive('/assets')"
+        />
+        <v-list-item
+          title="Hosts"
+          prepend-icon="mdi-server"
+          to="/hosts"
+          :active="isRouteActive('/hosts')"
+        />
+        <v-list-item
+          title="Web"
+          prepend-icon="mdi-web"
+          to="/web"
+          :active="isRouteActive('/web')"
+        />
+        <v-list-item
+          title="Data"
+          prepend-icon="mdi-database"
+          to="/data"
+          :active="isRouteActive('/data')"
+        />
       </v-list>
       <template #append>
         <div class="pa-2">
@@ -53,18 +74,24 @@
       </template>
     </v-navigation-drawer>
 
-    <v-main>
-      <router-view />
+    <v-main class="main-content">
+      <router-view v-slot="{ Component, route }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" :key="route.path" />
+        </transition>
+      </router-view>
     </v-main>
   </v-app>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useDisplay } from 'vuetify'
+import { useRoute } from 'vue-router'
 import Loader3D from '@/components/Loader3D.vue'
 
 const { smAndDown } = useDisplay()
+const route = useRoute()
 
 const drawer = ref(true)
 const rail = ref(false)
@@ -75,6 +102,26 @@ function simulateLoad() {
   setTimeout(() => (loading.value = false), 3200)
 }
 
+function isRouteActive(basePath: string): boolean {
+  const currentPath = route.path
+
+  // Exact match for assets and data
+  if (basePath === '/assets' || basePath === '/data') {
+    return currentPath === basePath
+  }
+
+  // For hosts and web, also match detail pages
+  if (basePath === '/hosts') {
+    return currentPath === '/hosts' || currentPath.startsWith('/hosts/')
+  }
+
+  if (basePath === '/web') {
+    return currentPath === '/web' || currentPath.startsWith('/web/')
+  }
+
+  return currentPath === basePath
+}
+
 onMounted(() => {
   // Keep the loader on-screen a bit on first load
   loading.value = true
@@ -83,6 +130,35 @@ onMounted(() => {
   if (smAndDown.value) drawer.value = false
 })
 </script>
+
+<style scoped>
+.main-content {
+  padding-top: 80px !important; /* Add space for the app bar */
+}
+
+/* Responsive padding for mobile */
+@media (max-width: 600px) {
+  .main-content {
+    padding-top: 72px !important; /* Smaller padding for mobile app bar */
+  }
+}
+
+/* Page transition effects */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease-in-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.fade-enter-to,
+.fade-leave-from {
+  opacity: 1;
+}
+</style>
 
 <style scoped>
 :deep(.v-navigation-drawer){

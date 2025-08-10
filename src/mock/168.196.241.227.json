@@ -1,0 +1,49 @@
+{
+      "ip": "168.196.241.227",
+      "location": {
+        "city": "New York City",
+        "country": "United States",
+        "country_code": "US",
+        "coordinates": {
+          "latitude": 40.71427,
+          "longitude": -74.00597
+        }
+      },
+      "autonomous_system": {
+        "asn": 263744,
+        "name": "Udasha S.A.",
+        "country_code": "HN"
+      },
+      "services": [
+        {
+          "port": 11558,
+          "protocol": "SSH",
+          "banner": "SSH-2.0-OpenSSH_8.7",
+          "software": [
+            {
+              "product": "openssh",
+              "vendor": "openbsd",
+              "version": "8.7"
+            }
+          ],
+          "vulnerabilities": [
+            {
+              "cve_id": "CVE-2023-38408",
+              "severity": "critical",
+              "cvss_score": 9.8,
+              "description": "Known exploited vulnerability"
+            },
+            {
+              "cve_id": "CVE-2024-6387",
+              "severity": "high",
+              "cvss_score": 8.1,
+              "description": "Known exploited vulnerability"
+            }
+          ]
+        }
+      ],
+      "threat_intelligence": {
+        "security_labels": ["REMOTE_ACCESS"],
+        "risk_level": "high"
+      }
+    }

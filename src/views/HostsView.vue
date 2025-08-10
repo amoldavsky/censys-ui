@@ -1,95 +1,310 @@
 <template>
-  <div class="layout">
-    <aside class="filters">
-      <v-card variant="flat" class="elevated">
-        <v-card-title class="text-subtitle-1">Filters</v-card-title>
-        <v-divider/>
-        <v-list density="compact">
-          <v-list-subheader>Types</v-list-subheader>
-          <v-checkbox label="hosts" v-model="filters.hosts" hide-details density="compact"/>
-          <v-checkbox label="web_properties" v-model="filters.web" hide-details density="compact"/>
+  <div class="page">
+    <div class="header">
+      <h1 class="title">Host Assets</h1>
+      <div class="header-actions">
+        <!-- Hidden file input -->
+        <input
+          ref="fileInput"
+          type="file"
+          accept="application/json,.json"
+          @change="onFileSelected"
+          style="display: none;"
+        />
 
-          <v-list-subheader class="mt-2">Labels</v-list-subheader>
-          <v-checkbox label="swagger-ui" v-model="filters.swagger" hide-details density="compact"/>
-          <v-checkbox label="remote-access" v-model="filters.remote" hide-details density="compact"/>
-          <v-checkbox label="jquery" v-model="filters.jquery" hide-details density="compact"/>
-          <v-checkbox label="database" v-model="filters.database" hide-details density="compact"/>
-        </v-list>
-      </v-card>
-    </aside>
+        <v-btn
+          color="secondary"
+          prepend-icon="mdi-upload"
+          @click="handleUploadClick"
+          :loading="uploading"
+          class="mr-2"
+        >
+          Upload
+        </v-btn>
 
-    <main class="content">
-      <div class="header">
-        <div class="title">Parsed JSON</div>
-        <JsonUpload @loaded="onLoaded" />
+        <v-btn
+          color="primary"
+          prepend-icon="mdi-refresh"
+          @click="loadHosts"
+          :loading="loading"
+          variant="outlined"
+        >
+          Refresh
+        </v-btn>
       </div>
+    </div>
 
-      <v-alert v-if="!cards.length" type="info" variant="tonal" class="mb-3">
-        Upload a JSON array of host objects to render rich cards. Sample data is preloaded.
-      </v-alert>
+    <v-alert v-if="error" type="error" variant="tonal" class="mb-4" closable @click:close="error = null">
+      {{ error }}
+    </v-alert>
 
-      <div class="cards">
-        <v-card v-for="h in cards" :key="h.ip" class="card" variant="flat">
-          <v-card-title class="text-subtitle-1">
-            <a :href="'#'">{{ h.ip }}</a>
-          </v-card-title>
-          <v-card-text>
-<pre>{{ formatHost(h) }}</pre>
-            <div class="chips">
-              <v-chip
-                v-for="l in h.labels || []"
-                :key="l"
-                size="x-small"
-                variant="flat"
-                color="secondary"
-              >{{ l }}</v-chip>
-            </div>
-          </v-card-text>
-        </v-card>
-      </div>
-    </main>
+    <v-alert v-if="uploadSuccess" type="success" variant="tonal" class="mb-4" closable @click:close="uploadSuccess = null">
+      {{ uploadSuccess }}
+    </v-alert>
+
+    <div class="table-container">
+      <v-data-table
+        :headers="headers"
+        :items="hosts"
+        :loading="loading"
+        item-key="ip"
+        density="compact"
+        fixed-header
+        height="600"
+        @click:row="onRowClick"
+        class="hosts-table"
+      >
+        <template #item.ip="{ item }">
+          <span class="ip-link">{{ item.ip }}</span>
+        </template>
+
+        <template #item.location="{ item }">
+          {{ item.location.city }}, {{ item.location.country }}
+        </template>
+
+        <template #item.autonomous_system="{ item }">
+          {{ item.autonomous_system.name }}
+        </template>
+
+        <template #item.services="{ item }">
+          <div class="services-summary">
+            <v-chip
+              v-for="service in item.services.slice(0, 2)"
+              :key="service.port"
+              size="small"
+              variant="outlined"
+              class="mr-1"
+            >
+              {{ service.protocol }} - {{ service.port }}
+            </v-chip>
+            <span v-if="item.services.length > 2" class="text-caption">
+              +{{ item.services.length - 2 }} more
+            </span>
+          </div>
+        </template>
+
+        <template #item.threat_intelligence="{ item }">
+          <v-chip
+            :color="getRiskColor(item.threat_intelligence.risk_level)"
+            size="small"
+            variant="flat"
+          >
+            {{ item.threat_intelligence.risk_level.toUpperCase() }}
+          </v-chip>
+        </template>
+
+        <template #bottom></template>
+      </v-data-table>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import JsonUpload from '@/components/JsonUpload.vue'
-import sample from '@/mock/hosts.json'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { apiService, type Host } from '@/services/api'
 
-type Host = {
-  ip: string
-  name?: string
-  autonomous_system?: number
-  location?: { city?: string, country?: string }
-  labels?: string[]
-}
+const router = useRouter()
 
-const filters = ref({ hosts: true, web: false, swagger: true, remote: true, jquery: false, database: false })
-const cards = ref<Host[]>([...sample])
+const hosts = ref<Host[]>([])
+const loading = ref(false)
+const uploading = ref(false)
+const error = ref<string | null>(null)
+const uploadSuccess = ref<string | null>(null)
+const selectedFile = ref<File | null>(null)
+const selectedFileName = ref<string>('')
+const fileInput = ref<HTMLInputElement>()
 
-function onLoaded(data:any){
-  if(Array.isArray(data)) cards.value = data as Host[]
-  else alert('Expected an array at top-level')
-}
+const headers = [
+  { title: 'IP Address', key: 'ip', width: 150 },
+  { title: 'Location', key: 'location', width: 200 },
+  { title: 'AS Name', key: 'autonomous_system', width: 200 },
+  { title: 'Services', key: 'services', width: 250 },
+  { title: 'Risk Level', key: 'threat_intelligence', align: 'end', width: 120 }
+]
 
-function formatHost(h: Host){
-  const out: any = {
-    name: h.name,
-    autonomous_system: h.autonomous_system,
-    location: h.location,
-    labels: h.labels
+async function loadHosts() {
+  loading.value = true
+  error.value = null
+
+  try {
+    hosts.value = await apiService.getHostAssets()
+  } catch (err) {
+    error.value = 'Failed to load host assets. Please try again.'
+    console.error('Error loading hosts:', err)
+  } finally {
+    loading.value = false
   }
-  return JSON.stringify(out, null, 2)
 }
+
+function handleUploadClick() {
+  // If no file is selected, trigger file selection
+  if (!selectedFile.value) {
+    if (fileInput.value) {
+      fileInput.value.click()
+    }
+  } else {
+    // If file is already selected, proceed with upload
+    uploadFile()
+  }
+}
+
+function onFileSelected(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+
+  // Clear previous messages when a new file is selected
+  error.value = null
+  uploadSuccess.value = null
+
+  if (file) {
+    // Validate file type
+    if (!file.type.includes('json') && !file.name.endsWith('.json')) {
+      error.value = 'Please select a valid JSON file.'
+      selectedFile.value = null
+      selectedFileName.value = ''
+      // Clear the file input
+      if (fileInput.value) {
+        fileInput.value.value = ''
+      }
+      return
+    }
+
+    selectedFile.value = file
+    selectedFileName.value = file.name
+
+    // Automatically proceed with upload after file selection
+    uploadFile()
+  } else {
+    selectedFile.value = null
+    selectedFileName.value = ''
+  }
+}
+
+async function uploadFile() {
+  if (!selectedFile.value) {
+    error.value = 'Please select a file to upload.'
+    return
+  }
+
+  uploading.value = true
+  error.value = null
+  uploadSuccess.value = null
+
+  try {
+    await apiService.uploadHostAssets(selectedFile.value)
+    uploadSuccess.value = `Successfully uploaded ${selectedFile.value.name}. Refreshing host list...`
+
+    // Clear the file input
+    selectedFile.value = null
+    selectedFileName.value = ''
+    if (fileInput.value) {
+      fileInput.value.value = ''
+    }
+
+    // Refresh the hosts list after successful upload
+    setTimeout(() => {
+      loadHosts()
+    }, 1000)
+
+  } catch (err) {
+    error.value = `Failed to upload ${selectedFile.value?.name || 'file'}. Please try again.`
+    console.error('Error uploading file:', err)
+  } finally {
+    uploading.value = false
+  }
+}
+
+function onRowClick(event: Event, { item }: { item: Host }) {
+  router.push(`/hosts/${item.ip}`)
+}
+
+function getRiskColor(riskLevel: string): string {
+  switch (riskLevel) {
+    case 'critical': return 'error'
+    case 'high': return 'warning'
+    case 'medium': return 'info'
+    case 'low': return 'success'
+    default: return 'grey'
+  }
+}
+
+onMounted(() => {
+  loadHosts()
+})
 </script>
 
 <style scoped>
-.layout{ display:grid; grid-template-columns: 260px 1fr; gap: 14px; padding: 12px; }
-.filters .elevated{ border:1px solid var(--edge); background: var(--bg-1); border-radius: 14px; }
-.content .header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:12px }
-.cards{ display:grid; grid-template-columns: 1fr; gap: 12px; }
-.card{ border:1px solid var(--edge); background:var(--bg-1); }
-pre{ margin:0; font-size:.82rem; color:#a9c1d6; white-space:pre-wrap }
-.chips{ margin-top:8px; display:flex; flex-wrap:wrap; gap:6px }
-@media(min-width:1100px){ .cards{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.page {
+  padding: 12px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 16px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--txt);
+}
+
+.table-container {
+  border: 1px solid var(--edge);
+  background: var(--bg-1);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.hosts-table :deep(.v-data-table__wrapper) {
+  min-height: 400px;
+}
+
+.hosts-table :deep(tbody tr) {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.hosts-table :deep(tbody tr:hover) {
+  background-color: rgba(0, 229, 168, 0.05);
+}
+
+.ip-link {
+  color: var(--pri);
+  font-weight: 500;
+}
+
+.services-summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .header-actions .v-file-input {
+    max-width: none !important;
+  }
+}
 </style>
