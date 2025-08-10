@@ -19,14 +19,14 @@
         {{ item.location.city }}, {{ item.location.country }}
       </template>
 
-      <template #item.autonomous_system="{ item }">
-        {{ item.autonomous_system.name }}
+      <template #item.as_name="{ item }">
+        {{ item.as_name }}
       </template>
 
       <template #item.services="{ item }">
         <div class="services-summary">
           <v-chip
-            v-for="service in item.services.slice(0, 2)"
+            v-for="service in (item.services || []).slice(0, 2)"
             :key="service.port"
             size="small"
             variant="outlined"
@@ -34,19 +34,19 @@
           >
             {{ service.protocol }} - {{ service.port }}
           </v-chip>
-          <span v-if="item.services.length > 2" class="text-caption">
+          <span v-if="item.services && item.services.length > 2" class="text-caption">
             +{{ item.services.length - 2 }} more
           </span>
         </div>
       </template>
 
-      <template #item.threat_intelligence="{ item }">
+      <template #item.risk="{ item }">
         <v-chip
-          :color="getRiskColor(item.threat_intelligence.risk_level)"
+          :color="getRiskColor(item.risk)"
           size="small"
           variant="flat"
         >
-          {{ item.threat_intelligence.risk_level.toUpperCase() }}
+          {{ item.risk.toUpperCase() }}
         </v-chip>
       </template>
 
@@ -73,9 +73,9 @@ const props = withDefaults(defineProps<Props>(), {
 const headers = [
   { title: 'IP Address', key: 'ip', width: 150 },
   { title: 'Location', key: 'location', width: 200 },
-  { title: 'AS Name', key: 'autonomous_system', width: 200 },
+  { title: 'AS Name', key: 'as_name', width: 250 },
   { title: 'Services', key: 'services', width: 250 },
-  { title: 'Risk Level', key: 'threat_intelligence', align: 'end', width: 120 }
+  { title: 'Risk Level', key: 'risk', align: 'end', width: 120 }
 ]
 
 function onRowClick(event: Event, { item }: { item: Host }) {

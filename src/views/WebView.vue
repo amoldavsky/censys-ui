@@ -76,27 +76,31 @@
         </template>
 
         <template #item.certificate_authority="{ item }">
-          {{ item.certificate_authority.name }}
+          {{ item.certificate_authority || 'N/A' }}
         </template>
 
-        <template #item.validity_period="{ item }">
+        <template #item.status="{ item }">
           <v-chip
-            :color="getStatusColor(item.validity_period.status)"
+            v-if="item.status"
+            :color="getStatusColor(item.status)"
             size="small"
             variant="flat"
           >
-            {{ item.validity_period.status.toUpperCase() }}
+            {{ item.status.toUpperCase() }}
           </v-chip>
+          <span v-else class="text-caption">N/A</span>
         </template>
 
-        <template #item.security_analysis="{ item }">
+        <template #item.risks="{ item }">
           <v-chip
-            :color="getRiskColor(item.security_analysis.risk_level)"
+            v-if="item.risks"
+            :color="getRiskColor(item.risks)"
             size="small"
             variant="flat"
           >
-            {{ item.security_analysis.risk_level.toUpperCase() }}
+            {{ item.risks.toUpperCase() }}
           </v-chip>
+          <span v-else class="text-caption">N/A</span>
         </template>
 
         <template #bottom></template>
@@ -125,8 +129,8 @@ const headers = [
   { title: 'Domain', key: 'id', width: 200 },
   { title: 'All Domains', key: 'domains', width: 250 },
   { title: 'Certificate Authority', key: 'certificate_authority', width: 200 },
-  { title: 'Status', key: 'validity_period', width: 120 },
-  { title: 'Risk Level', key: 'security_analysis', align: 'end', width: 120 }
+  { title: 'Status', key: 'status', width: 120 },
+  { title: 'Risk Level', key: 'risks', align: 'end', width: 120 }
 ]
 
 async function loadWebAssets() {
@@ -136,6 +140,7 @@ async function loadWebAssets() {
   try {
     webAssets.value = await apiService.getWebAssets()
     console.log('Loaded web assets:', webAssets.value)
+    console.log('First web asset structure:', webAssets.value[0])
   } catch (err) {
     error.value = 'Failed to load web assets. Please try again.'
     console.error('Error loading web assets:', err)

@@ -5,7 +5,7 @@ import mockWebAssets from '@/mock/web.json'
 const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1`
 
 // Configuration: Set to false to use real API, true to use mock data
-const USE_MOCK_DATA = false
+const USE_MOCK_DATA = false;
 
 export interface Location {
   city: string
@@ -49,7 +49,21 @@ export interface ThreatIntelligence {
   risk_level: 'critical' | 'high' | 'medium' | 'low'
 }
 
+// Simple Host interface matching the actual API response
 export interface Host {
+  id: string
+  source: string
+  created_at: string
+  updated_at: string
+  ip: string
+  as_name: string
+  services: Service[]
+  risk: 'low' | 'medium' | 'high' | 'critical'
+  location: Location // Location data for map display
+}
+
+// Legacy complex interface (keeping for reference)
+export interface ComplexHost {
   ip: string
   location: Location
   autonomous_system: AutonomousSystem
@@ -126,7 +140,20 @@ export interface UsageIndicators {
   last_seen: string
 }
 
+// Simple WebAsset interface matching the actual API response
 export interface WebAsset {
+  id: string
+  source: string
+  created_at: string
+  updated_at: string
+  domains: string[]
+  certificate_authority: string
+  status: 'active' | 'expired'
+  risks: 'low' | 'medium' | 'high' | 'critical'
+}
+
+// Legacy complex interface (keeping for reference)
+export interface ComplexWebAsset {
   id: string
   fingerprint_sha256: string
   fingerprint_sha1: string
@@ -192,14 +219,22 @@ class ApiService {
           const items = Array.isArray(mockData) ? mockData : mockData.data?.items || []
           const host = items.find((h: Host) => h.ip === ip)
           if (host) {
-            resolve(host as Host)
+            // Simulate the API response structure for individual asset
+            const response = {
+              success: true,
+              data: host
+            }
+            resolve(response.data as Host)
           } else {
             reject(new Error(`Host with IP ${ip} not found`))
           }
         }, 300) // Simulate network delay
       })
     }
-    return this.request<Host>(`/assets/hosts/${ip}`)
+
+    // For real API calls, handle the new response structure
+    const response = await this.request<{ success: boolean, data: Host }>(`/assets/hosts/${ip}`)
+    return response.data
   }
 
   // Web Assets Methods
@@ -207,12 +242,28 @@ class ApiService {
     if (USE_MOCK_DATA) {
       return new Promise((resolve) => {
         setTimeout(() => {
-          // Handle the new data.items structure
-          const mockData = mockWebAssets as any
-          console.log('Raw mock data:', mockData)
-          const items = mockData.data?.items || mockData
-          console.log('Extracted items:', items)
-          resolve(items as WebAsset[])
+          try {
+            // Handle the new data.items structure
+            const mockData = mockWebAssets as any
+            console.log('Raw mock data:', mockData)
+
+            // Extract items from the nested structure
+            let items: WebAsset[] = []
+            if (mockData && typeof mockData === 'object') {
+              if (mockData.data && mockData.data.items && Array.isArray(mockData.data.items)) {
+                items = mockData.data.items
+              } else if (Array.isArray(mockData)) {
+                items = mockData
+              }
+            }
+
+            console.log('Extracted items:', items)
+            console.log('Items count:', items.length)
+            resolve(items)
+          } catch (error) {
+            console.error('Error processing mock web assets:', error)
+            resolve([])
+          }
         }, 500) // Simulate network delay
       })
     }
@@ -227,21 +278,44 @@ class ApiService {
     if (USE_MOCK_DATA) {
       return new Promise((resolve, reject) => {
         setTimeout(() => {
-          // Handle the new data.items structure
-          const mockData = mockWebAssets as any
-          const items = mockData.data?.items || mockData
-          const webAsset = items.find((w: WebAsset) =>
-            w.id === domain || w.domains.includes(domain)
-          )
-          if (webAsset) {
-            resolve(webAsset as WebAsset)
-          } else {
-            reject(new Error(`Web asset with domain ${domain} not found`))
+          try {
+            // Handle the new data.items structure
+            const mockData = mockWebAssets as any
+            let items: WebAsset[] = []
+
+            if (mockData && typeof mockData === 'object') {
+              if (mockData.data && mockData.data.items && Array.isArray(mockData.data.items)) {
+                items = mockData.data.items
+              } else if (Array.isArray(mockData)) {
+                items = mockData
+              }
+            }
+
+            const webAsset = items.find((w: WebAsset) =>
+              w.id === domain || (w.domains && w.domains.includes(domain))
+            )
+
+            if (webAsset) {
+              // Simulate the API response structure for individual asset
+              const response = {
+                success: true,
+                data: webAsset
+              }
+              resolve(response.data as WebAsset)
+            } else {
+              reject(new Error(`Web asset with domain ${domain} not found`))
+            }
+          } catch (error) {
+            console.error('Error finding web asset:', error)
+            reject(new Error(`Error processing web asset data: ${error}`))
           }
         }, 300) // Simulate network delay
       })
     }
-    return this.request<WebAsset>(`/assets/web/${domain}`)
+
+    // For real API calls, handle the new response structure
+    const response = await this.request<{ success: boolean, data: WebAsset }>(`/assets/web/${domain}`)
+    return response.data
   }
 
   // Legacy methods for backward compatibility

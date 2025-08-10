@@ -16,12 +16,12 @@
         <h1 class="title">{{ host?.ip || ip }}</h1>
         <v-chip 
           v-if="host"
-          :color="getRiskColor(host.threat_intelligence.risk_level)" 
+          :color="getRiskColor(host.risk)" 
           size="large" 
           variant="flat"
           class="risk-chip"
         >
-          {{ host.threat_intelligence.risk_level.toUpperCase() }} RISK
+          {{ host.risk.toUpperCase() }} RISK
         </v-chip>
       </div>
     </div>
@@ -38,7 +38,7 @@
     <div v-else-if="host" class="content">
       <!-- Basic Information -->
       <v-card class="info-card mb-6" variant="flat">
-        <v-card-title class="text-h6">Basic Information</v-card-title>
+        <v-card-title class="text-h6">Host Information</v-card-title>
         <v-divider />
         <v-card-text>
           <div class="info-grid">
@@ -47,58 +47,51 @@
               <span class="value">{{ host.ip }}</span>
             </div>
             <div class="info-item">
+              <span class="label">Source</span>
+              <span class="value">{{ host.source }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">AS Name</span>
+              <span class="value">{{ host.as_name }}</span>
+            </div>
+            <div class="info-item">
               <span class="label">Location</span>
               <span class="value">{{ host.location.city }}, {{ host.location.country }}</span>
             </div>
             <div class="info-item">
-              <span class="label">Country Code</span>
-              <span class="value">{{ host.location.country_code }}</span>
+              <span class="label">Risk Level</span>
+              <div class="chip-container">
+                <v-chip
+                  :color="getRiskColor(host.risk)"
+                  variant="flat"
+                  size="small"
+                >
+                  {{ host.risk.toUpperCase() }}
+                </v-chip>
+              </div>
             </div>
             <div class="info-item">
-              <span class="label">Coordinates</span>
-              <span class="value">{{ host.location.coordinates.latitude }}, {{ host.location.coordinates.longitude }}</span>
+              <span class="label">Created</span>
+              <span class="value">{{ formatDate(host.created_at) }}</span>
             </div>
             <div class="info-item">
-              <span class="label">ASN</span>
-              <span class="value">{{ host.autonomous_system.asn }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">AS Name</span>
-              <span class="value">{{ host.autonomous_system.name }}</span>
+              <span class="label">Last Updated</span>
+              <span class="value">{{ formatDate(host.updated_at) }}</span>
             </div>
           </div>
         </v-card-text>
       </v-card>
 
-      <!-- Threat Intelligence -->
+      <!-- Location Map -->
       <v-card class="info-card mb-6" variant="flat">
-        <v-card-title class="text-h6">Threat Intelligence</v-card-title>
+        <v-card-title class="text-h6">Location</v-card-title>
         <v-divider />
-        <v-card-text>
-          <div class="threat-info">
-            <div class="risk-level">
-              <span class="label">Risk Level:</span>
-              <v-chip 
-                :color="getRiskColor(host.threat_intelligence.risk_level)" 
-                variant="flat"
-                class="ml-2"
-              >
-                {{ host.threat_intelligence.risk_level.toUpperCase() }}
-              </v-chip>
-            </div>
-            <div class="security-labels mt-4">
-              <span class="label">Security Labels:</span>
-              <div class="labels-container">
-                <v-chip 
-                  v-for="label in host.threat_intelligence.security_labels" 
-                  :key="label"
-                  size="small"
-                  variant="outlined"
-                  color="warning"
-                  class="mr-2 mb-2"
-                >
-                  {{ label }}
-                </v-chip>
+        <v-card-text class="pa-0">
+          <div class="map-container">
+            <div ref="mapContainer" class="leaflet-map">
+              <div v-if="!map" class="map-loading">
+                <v-progress-circular indeterminate color="primary" size="32"></v-progress-circular>
+                <p class="mt-2">Loading map...</p>
               </div>
             </div>
           </div>
@@ -107,13 +100,18 @@
 
       <!-- Services -->
       <v-card class="info-card" variant="flat">
-        <v-card-title class="text-h6">Services ({{ host.services.length }})</v-card-title>
+        <v-card-title class="text-h6">Services ({{ host.services?.length || 0 }})</v-card-title>
         <v-divider />
         <v-card-text>
           <div class="services-list">
-            <v-expansion-panels v-if="host.services.length > 0" variant="accordion">
-              <v-expansion-panel 
-                v-for="(service, index) in host.services" 
+            <v-expansion-panels
+              v-if="host.services && host.services.length > 0"
+              variant="accordion"
+              multiple
+              v-model="expandedPanels"
+            >
+              <v-expansion-panel
+                v-for="(service, index) in host.services"
                 :key="index"
                 class="service-panel"
               >
@@ -123,16 +121,6 @@
                       <span class="protocol">{{ service.protocol }}</span>
                       <span class="port">Port {{ service.port }}</span>
                     </div>
-                    <div class="vulnerability-count">
-                      <v-chip 
-                        v-if="service.vulnerabilities.length > 0"
-                        :color="getHighestSeverityColor(service.vulnerabilities)"
-                        size="small"
-                        variant="flat"
-                      >
-                        {{ service.vulnerabilities.length }} {{ service.vulnerabilities.length === 1 ? 'vulnerability' : 'vulnerabilities' }}
-                      </v-chip>
-                    </div>
                   </div>
                 </v-expansion-panel-title>
                 
@@ -140,10 +128,10 @@
                   <div class="service-details">
                     <div class="banner mb-4">
                       <span class="label">Banner:</span>
-                      <code class="banner-text">{{ service.banner }}</code>
+                      <code class="banner-text">{{ service.banner || 'N/A' }}</code>
                     </div>
                     
-                    <div v-if="service.software.length > 0" class="software mb-4">
+                    <div v-if="service.software && service.software.length > 0" class="software mb-4">
                       <span class="label">Software:</span>
                       <div class="software-list">
                         <v-chip 
@@ -158,7 +146,7 @@
                       </div>
                     </div>
                     
-                    <div v-if="service.vulnerabilities.length > 0" class="vulnerabilities">
+                    <div v-if="service.vulnerabilities && service.vulnerabilities.length > 0" class="vulnerabilities">
                       <span class="label">Vulnerabilities:</span>
                       <div class="vulnerability-list">
                         <v-card 
@@ -201,9 +189,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import { apiService, type Host, type Vulnerability } from '@/services/api'
+import { apiService, type Host, type Location } from '@/services/api'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 const route = useRoute()
 const ip = route.params.ip as string
@@ -211,6 +201,9 @@ const ip = route.params.ip as string
 const host = ref<Host | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
+const expandedPanels = ref<number[]>([])
+const mapContainer = ref<HTMLElement>()
+let map: L.Map | null = null
 
 async function loadHostDetails() {
   loading.value = true
@@ -218,6 +211,18 @@ async function loadHostDetails() {
   
   try {
     host.value = await apiService.getHostAssetByIp(ip)
+    console.log('Loaded host details:', host.value)
+
+    // Expand all service panels by default
+    if (host.value?.services) {
+      expandedPanels.value = host.value.services.map((_, index) => index)
+    }
+
+    // Initialize map after host data is loaded
+    await nextTick()
+    setTimeout(() => {
+      initializeMap()
+    }, 100)
   } catch (err) {
     error.value = `Failed to load details for host ${ip}. Please try again.`
     console.error('Error loading host details:', err)
@@ -246,16 +251,68 @@ function getSeverityColor(severity: string): string {
   }
 }
 
-function getHighestSeverityColor(vulnerabilities: Vulnerability[]): string {
-  const severityOrder = ['critical', 'high', 'medium', 'low']
-  
-  for (const severity of severityOrder) {
-    if (vulnerabilities.some(v => v.severity === severity)) {
-      return getSeverityColor(severity)
-    }
+function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function initializeMap() {
+  console.log('Initializing map...')
+  console.log('mapContainer.value:', mapContainer.value)
+  console.log('host.value?.location:', host.value?.location)
+
+  if (!mapContainer.value || !host.value?.location) {
+    console.error('Map container or location not available')
+    return
   }
-  
-  return 'grey'
+
+  const lat = host.value.location.coordinates.latitude
+  const lng = host.value.location.coordinates.longitude
+
+  console.log('Coordinates:', lat, lng)
+
+  try {
+    // Initialize the map
+    map = L.map(mapContainer.value).setView([lat, lng], 10)
+    console.log('Map initialized')
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map)
+    console.log('Tiles added')
+
+    // Create custom red marker
+    const redIcon = L.divIcon({
+      className: 'custom-marker',
+      html: `<div class="marker-pin">
+               <div class="marker-icon"></div>
+             </div>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 20]
+    })
+
+    // Add marker with popup
+    L.marker([lat, lng], { icon: redIcon })
+      .addTo(map)
+      .bindPopup(`
+        <div class="marker-popup">
+          <strong>${host.value.location.city}</strong><br>
+          ${host.value.location.country}<br>
+          <small>IP: ${host.value.ip}</small>
+        </div>
+      `)
+      .openPopup()
+
+    console.log('Marker added')
+  } catch (error) {
+    console.error('Error initializing map:', error)
+  }
 }
 
 onMounted(() => {
@@ -334,19 +391,9 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.threat-info {
+.chip-container {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.risk-level {
-  display: flex;
-  align-items: center;
-}
-
-.labels-container {
-  margin-top: 8px;
+  align-items: flex-start;
 }
 
 .service-panel {
@@ -429,5 +476,85 @@ onMounted(() => {
   justify-content: center;
   padding: 48px;
   text-align: center;
+}
+
+/* Map Widget Styles */
+.map-container {
+  position: relative;
+  height: 300px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+
+.leaflet-map {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  background: #e5e7eb;
+}
+
+.map-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--txt);
+}
+
+/* Custom Leaflet Marker Styles */
+:deep(.custom-marker) {
+  background: transparent !important;
+  border: none !important;
+}
+
+.marker-pin {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.marker-icon {
+  width: 16px;
+  height: 16px;
+  background: #ef4444;
+  border: 2px solid white;
+  border-radius: 50%;
+  position: absolute;
+  top: 0;
+  left: 2px;
+  animation: pulse 2s infinite;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.marker-icon::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid #ef4444;
+}
+
+:deep(.marker-popup) {
+  font-family: inherit;
+  text-align: center;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(239, 68, 68, 0);
+  }
 }
 </style>
