@@ -203,7 +203,7 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const expandedPanels = ref<number[]>([])
 const mapContainer = ref<HTMLElement>()
-let map: L.Map | null = null
+const map = ref<L.Map | null>(null)
 
 async function loadHostDetails() {
   loading.value = true
@@ -278,13 +278,13 @@ function initializeMap() {
 
   try {
     // Initialize the map
-    map = L.map(mapContainer.value).setView([lat, lng], 10)
+    map.value = L.map(mapContainer.value).setView([lat, lng], 10)
     console.log('Map initialized')
 
     // Add OpenStreetMap tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
-    }).addTo(map)
+    }).addTo(map.value)
     console.log('Tiles added')
 
     // Create custom red marker
@@ -299,7 +299,7 @@ function initializeMap() {
 
     // Add marker with popup
     L.marker([lat, lng], { icon: redIcon })
-      .addTo(map)
+      .addTo(map.value)
       .bindPopup(`
         <div class="marker-popup">
           <strong>${host.value.location.city}</strong><br>

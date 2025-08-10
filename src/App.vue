@@ -58,20 +58,7 @@
           to="/web"
           :active="isRouteActive('/web')"
         />
-        <v-list-item
-          title="Data"
-          prepend-icon="mdi-database"
-          to="/data"
-          :active="isRouteActive('/data')"
-        />
       </v-list>
-      <template #append>
-        <div class="pa-2">
-          <v-btn block color="primary" @click="simulateLoad" prepend-icon="mdi-play">
-            Run Scan
-          </v-btn>
-        </div>
-      </template>
     </v-navigation-drawer>
 
     <v-main class="main-content">
@@ -105,8 +92,8 @@ function simulateLoad() {
 function isRouteActive(basePath: string): boolean {
   const currentPath = route.path
 
-  // Exact match for assets and data
-  if (basePath === '/assets' || basePath === '/data') {
+  // Exact match for assets
+  if (basePath === '/assets') {
     return currentPath === basePath
   }
 
