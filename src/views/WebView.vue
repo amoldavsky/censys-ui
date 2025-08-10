@@ -61,7 +61,7 @@
         <template #item.domains="{ item }">
           <div class="domains-summary">
             <v-chip
-              v-for="domain in item.domains.slice(0, 2)"
+              v-for="domain in (item.domains || []).slice(0, 2)"
               :key="domain"
               size="small"
               variant="outlined"
@@ -69,7 +69,7 @@
             >
               {{ domain }}
             </v-chip>
-            <span v-if="item.domains.length > 2" class="text-caption">
+            <span v-if="item.domains && item.domains.length > 2" class="text-caption">
               +{{ item.domains.length - 2 }} more
             </span>
           </div>
@@ -135,6 +135,7 @@ async function loadWebAssets() {
 
   try {
     webAssets.value = await apiService.getWebAssets()
+    console.log('Loaded web assets:', webAssets.value)
   } catch (err) {
     error.value = 'Failed to load web assets. Please try again.'
     console.error('Error loading web assets:', err)

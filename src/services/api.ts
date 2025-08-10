@@ -2,7 +2,10 @@
 import mockHosts from '@/mock/hosts.json'
 import mockWebAssets from '@/mock/web.json'
 
-const API_BASE_URL = '/api/v1'
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1`
+
+// Configuration: Set to false to use real API, true to use mock data
+const USE_MOCK_DATA = false
 
 export interface Location {
   city: string
@@ -159,52 +162,86 @@ class ApiService {
 
   // Host Assets Methods
   async getHostAssets(): Promise<Host[]> {
-    // Use mock data instead of API call to /api/v1/assets/hosts
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(mockHosts as Host[])
-      }, 500) // Simulate network delay
-    })
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // Handle both array and data.items structure
+          const mockData = mockHosts as any
+          const items = Array.isArray(mockData) ? mockData : mockData.data?.items || []
+          resolve(items as Host[])
+        }, 500) // Simulate network delay
+      })
+    }
+
+    try {
+      // Try to get data.items structure first
+      const response = await this.request<{ data: { items: Host[] } }>('/assets/hosts')
+      return response.data.items
+    } catch (error) {
+      // Fallback to direct array if the API returns a simple array
+      return this.request<Host[]>('/assets/hosts')
+    }
   }
 
   async getHostAssetByIp(ip: string): Promise<Host> {
-    // Use mock data instead of API call to /api/v1/assets/hosts/{ip}
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const host = mockHosts.find(h => h.ip === ip)
-        if (host) {
-          resolve(host as Host)
-        } else {
-          reject(new Error(`Host with IP ${ip} not found`))
-        }
-      }, 300) // Simulate network delay
-    })
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          // Handle both array and data.items structure
+          const mockData = mockHosts as any
+          const items = Array.isArray(mockData) ? mockData : mockData.data?.items || []
+          const host = items.find((h: Host) => h.ip === ip)
+          if (host) {
+            resolve(host as Host)
+          } else {
+            reject(new Error(`Host with IP ${ip} not found`))
+          }
+        }, 300) // Simulate network delay
+      })
+    }
+    return this.request<Host>(`/assets/hosts/${ip}`)
   }
 
   // Web Assets Methods
   async getWebAssets(): Promise<WebAsset[]> {
-    // Use mock data instead of API call to /api/v1/assets/web
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(mockWebAssets as WebAsset[])
-      }, 500) // Simulate network delay
-    })
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // Handle the new data.items structure
+          const mockData = mockWebAssets as any
+          console.log('Raw mock data:', mockData)
+          const items = mockData.data?.items || mockData
+          console.log('Extracted items:', items)
+          resolve(items as WebAsset[])
+        }, 500) // Simulate network delay
+      })
+    }
+
+    // For real API calls, handle the data.items structure
+    const response = await this.request<{ data: { items: WebAsset[] } }>('/assets/web')
+    console.log('API response:', response)
+    return response.data.items
   }
 
   async getWebAssetByDomain(domain: string): Promise<WebAsset> {
-    // Use mock data instead of API call to /api/v1/assets/web/{domain}
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const webAsset = mockWebAssets.find(w =>
-          w.id === domain || w.domains.includes(domain)
-        )
-        if (webAsset) {
-          resolve(webAsset as WebAsset)
-        } else {
-          reject(new Error(`Web asset with domain ${domain} not found`))
-        }
-      }, 300) // Simulate network delay
-    })
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          // Handle the new data.items structure
+          const mockData = mockWebAssets as any
+          const items = mockData.data?.items || mockData
+          const webAsset = items.find((w: WebAsset) =>
+            w.id === domain || w.domains.includes(domain)
+          )
+          if (webAsset) {
+            resolve(webAsset as WebAsset)
+          } else {
+            reject(new Error(`Web asset with domain ${domain} not found`))
+          }
+        }, 300) // Simulate network delay
+      })
+    }
+    return this.request<WebAsset>(`/assets/web/${domain}`)
   }
 
   // Legacy methods for backward compatibility
@@ -217,45 +254,85 @@ class ApiService {
   }
 
   async uploadHostAssets(file: File): Promise<any> {
-    // Simulate upload with mock response to /api/v1/assets/hosts/upload
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // Simulate validation
-        if (!file.type.includes('json') && !file.name.endsWith('.json')) {
-          reject(new Error('Invalid file type. Please upload a JSON file.'))
-          return
-        }
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          // Simulate validation
+          if (!file.type.includes('json') && !file.name.endsWith('.json')) {
+            reject(new Error('Invalid file type. Please upload a JSON file.'))
+            return
+          }
 
-        // Simulate successful upload
-        resolve({
-          success: true,
-          message: `Successfully uploaded ${file.name}`,
-          uploaded_at: new Date().toISOString(),
-          file_size: file.size
-        })
-      }, 1000) // Simulate upload time
-    })
+          // Simulate successful upload
+          resolve({
+            success: true,
+            message: `Successfully uploaded ${file.name}`,
+            uploaded_at: new Date().toISOString(),
+            file_size: file.size
+          })
+        }, 1000) // Simulate upload time
+      })
+    }
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch(`${API_BASE_URL}/assets/hosts/upload`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Host assets upload failed:', error)
+      throw error
+    }
   }
 
   async uploadWebAssets(file: File): Promise<any> {
-    // Simulate upload with mock response to /api/v1/assets/web/upload
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // Simulate validation
-        if (!file.type.includes('json') && !file.name.endsWith('.json')) {
-          reject(new Error('Invalid file type. Please upload a JSON file.'))
-          return
-        }
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          // Simulate validation
+          if (!file.type.includes('json') && !file.name.endsWith('.json')) {
+            reject(new Error('Invalid file type. Please upload a JSON file.'))
+            return
+          }
 
-        // Simulate successful upload
-        resolve({
-          success: true,
-          message: `Successfully uploaded ${file.name}`,
-          uploaded_at: new Date().toISOString(),
-          file_size: file.size
-        })
-      }, 1000) // Simulate upload time
-    })
+          // Simulate successful upload
+          resolve({
+            success: true,
+            message: `Successfully uploaded ${file.name}`,
+            uploaded_at: new Date().toISOString(),
+            file_size: file.size
+          })
+        }, 1000) // Simulate upload time
+      })
+    }
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch(`${API_BASE_URL}/assets/web/upload`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Web assets upload failed:', error)
+      throw error
+    }
   }
 
   // Legacy method for backward compatibility
