@@ -2,13 +2,20 @@
   <v-app>
     <Loader3D :active="loading" />
 
-    <v-app-bar flat height="64" :elevation="0" class="px-2" color="transparent">
+    <v-app-bar
+      flat
+      :height="smAndDown ? 56 : 64"
+      class="px-2"
+      color="transparent"
+      density="comfortable"
+    >
       <v-btn icon="mdi-menu" variant="text" @click="drawer = !drawer" />
       <v-toolbar-title class="font-weight-bold">
-        <span style="color:var(--pri)">SECURITY</span> <span style="color:#8aa1b5">SCAN</span>
+        <span style="color:var(--pri)">SECURITY</span>
+        <span style="color:#8aa1b5">SCAN</span>
       </v-toolbar-title>
       <v-spacer />
-      <v-btn icon="mdi-bell-outline" variant="text" />
+      <v-btn icon="mdi-bell-outline" variant="text" class="mr-1" />
       <v-menu>
         <template #activator="{ props }">
           <v-btn v-bind="props" variant="text" class="ml-1">
@@ -24,16 +31,24 @@
       </v-menu>
     </v-app-bar>
 
-    <v-navigation-drawer v-model="drawer" :rail="rail" @mouseenter="rail=false" @mouseleave="rail=true" floating>
+    <v-navigation-drawer
+      v-model="drawer"
+      :rail="!smAndDown && rail"
+      :temporary="smAndDown"
+      :width="smAndDown ? 280 : undefined"
+      floating
+    >
       <v-list density="comfortable" nav>
-        <v-list-item title="Assets" prepend-icon="mdi-lan" to="/assets"/>
-        <v-list-item title="Hosts" prepend-icon="mdi-server" to="/hosts"/>
-        <v-list-item title="Web" prepend-icon="mdi-web" to="/web"/>
-        <v-list-item title="Data" prepend-icon="mdi-database" to="/data"/>
+        <v-list-item title="Assets" prepend-icon="mdi-lan" to="/assets" />
+        <v-list-item title="Hosts" prepend-icon="mdi-server" to="/hosts" />
+        <v-list-item title="Web" prepend-icon="mdi-web" to="/web" />
+        <v-list-item title="Data" prepend-icon="mdi-database" to="/data" />
       </v-list>
       <template #append>
         <div class="pa-2">
-          <v-btn block color="primary" @click="simulateLoad" prepend-icon="mdi-play">Run Scan</v-btn>
+          <v-btn block color="primary" @click="simulateLoad" prepend-icon="mdi-play">
+            Run Scan
+          </v-btn>
         </div>
       </template>
     </v-navigation-drawer>
@@ -46,28 +61,33 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useDisplay } from 'vuetify'
 import Loader3D from '@/components/Loader3D.vue'
+
+const { smAndDown } = useDisplay()
 
 const drawer = ref(true)
 const rail = ref(false)
 const loading = ref(false)
 
-function simulateLoad(){
+function simulateLoad() {
   loading.value = true
-  setTimeout(()=> loading.value = false, 4300)
+  setTimeout(() => (loading.value = false), 3200)
 }
 
-onMounted(()=>{
-  // small intro shimmer/loader
+onMounted(() => {
+  // Keep the loader on-screen a bit on first load
   loading.value = true
-  setTimeout(()=> loading.value = false, 1600)
+  setTimeout(() => (loading.value = false), 2600)
+  // Start with closed drawer on mobile
+  if (smAndDown.value) drawer.value = false
 })
 </script>
 
 <style scoped>
 :deep(.v-navigation-drawer){
   border-right: 1px solid var(--edge);
-  background: radial-gradient(800px 200px at 0 -10%, rgba(0,226,168,.06), transparent) , var(--bg-1) !important;
+  background: radial-gradient(800px 200px at 0 -10%, rgba(0,226,168,.06), transparent), var(--bg-1) !important;
 }
 :deep(.v-app-bar){
   border-bottom: 1px solid var(--edge);
@@ -77,5 +97,15 @@ onMounted(()=>{
   padding-top: 12px;
   background: radial-gradient(1200px 400px at 70% -10%, rgba(0,194,255,.07), transparent), var(--bg-0) !important;
   min-height: 100vh;
+}
+
+/* small-device niceties */
+@media (max-width: 600px){
+  :deep(.v-main){
+    padding-top: 8px;
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
 }
 </style>

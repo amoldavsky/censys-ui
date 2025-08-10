@@ -1,17 +1,21 @@
 <template>
-  <v-data-table
-    :headers="headers"
-    :items="items"
-    class="elevated"
-    item-key="domain"
-    density="compact">
-    <template #item.status="{ item }">
-      <v-chip :color="item.status==='Active' ? 'success' : 'warning'" size="small" variant="flat">
-        {{ item.status }}
-      </v-chip>
-    </template>
-    <template #bottom></template>
-  </v-data-table>
+  <div class="table-wrap elevated">
+    <v-data-table
+      :headers="headers"
+      :items="items"
+      item-key="domain"
+      density="compact"
+      fixed-header
+      height="auto"
+    >
+      <template #item.status="{ item }">
+        <v-chip :color="item.status==='Active' ? 'success' : 'warning'" size="small" variant="flat">
+          {{ item.status }}
+        </v-chip>
+      </template>
+      <template #bottom></template>
+    </v-data-table>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -28,5 +32,13 @@ const items = [
 </script>
 
 <style scoped>
-.elevated{ border:1px solid var(--edge); background:var(--bg-1); border-radius:14px; overflow: hidden; }
+.table-wrap{
+  border:1px solid var(--edge);
+  background: var(--bg-1);
+  border-radius:14px;
+  overflow:auto;
+}
+.table-wrap :deep(table){
+  min-width: 680px;
+}
 </style>

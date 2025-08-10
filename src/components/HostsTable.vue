@@ -1,17 +1,21 @@
 <template>
-  <v-data-table
-    :headers="headers"
-    :items="items"
-    item-key="ip"
-    density="compact"
-    class="elevated">
-    <template #item.severity="{ item }">
-      <v-chip :color="item.severity === 'Critical' ? 'error' : 'warning'" size="small" variant="flat">
-        {{ item.severity }}
-      </v-chip>
-    </template>
-    <template #bottom></template>
-  </v-data-table>
+  <div class="table-wrap elevated">
+    <v-data-table
+      :headers="headers"
+      :items="items"
+      item-key="ip"
+      density="compact"
+      fixed-header
+      height="auto"
+    >
+      <template #item.severity="{ item }">
+        <v-chip :color="item.severity === 'Critical' ? 'error' : 'warning'" size="small" variant="flat">
+          {{ item.severity }}
+        </v-chip>
+      </template>
+      <template #bottom></template>
+    </v-data-table>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -31,10 +35,13 @@ const items = [
 </script>
 
 <style scoped>
-.elevated{
-  border: 1px solid var(--edge);
+.table-wrap{
+  border:1px solid var(--edge);
   background: var(--bg-1);
-  border-radius: 14px;
-  overflow: hidden;
+  border-radius:14px;
+  overflow:auto; /* horizontal scroll on small */
+}
+.table-wrap :deep(table){
+  min-width: 680px; /* prevents cramped columns on phones */
 }
 </style>
