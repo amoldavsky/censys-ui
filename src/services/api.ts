@@ -56,7 +56,9 @@ export interface ChatMessage {
 
 export interface ChatRequest {
   messages: ChatMessage[]
-  asset_data?: any
+  asset_id?: string
+  asset_type?: 'web' | 'host'
+  summary_id?: string
 }
 
 export interface ChatResponse {
@@ -491,15 +493,26 @@ class ApiService {
 
 
   // Chat Methods
-  async sendChatMessage(messages: ChatMessage[], assetData?: any): Promise<ChatResponse> {
+  async sendChatMessage(
+    messages: ChatMessage[],
+    assetId?: string,
+    assetType?: 'web' | 'host',
+    summaryId?: string
+  ): Promise<ChatResponse> {
     try {
       const requestBody: ChatRequest = {
         messages
       }
 
-      // Only include asset_data if it exists
-      if (assetData) {
-        requestBody.asset_data = assetData
+      // Add optional context parameters
+      if (assetId) {
+        requestBody.asset_id = assetId
+      }
+      if (assetType) {
+        requestBody.asset_type = assetType
+      }
+      if (summaryId) {
+        requestBody.summary_id = summaryId
       }
 
       const response = await fetch(`${API_BASE_URL}/chat`, {

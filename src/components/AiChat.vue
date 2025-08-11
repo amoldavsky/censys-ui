@@ -120,6 +120,7 @@ interface Props {
   assetType: 'host' | 'web'
   assetData?: any
   suggestions?: SuggestionCard[]
+  summaryId?: string
 }
 
 const props = defineProps<Props>()
@@ -147,13 +148,15 @@ async function sendMessage() {
   await scrollToBottom()
   
   try {
-    // Send all messages and asset data to the API
+    // Send all messages with asset context to the API
     const data = await apiService.sendChatMessage(
       messages.value.map(msg => ({
         role: msg.role,
         content: msg.content
       })),
-      props.assetData
+      props.assetData?.id, // asset_id
+      props.assetType,     // asset_type
+      props.summaryId      // summary_id
     )
     
     const aiMessage: ChatMessage = {

@@ -164,7 +164,12 @@ interface Props {
   domain: string
 }
 
+interface Emits {
+  (e: 'summaryLoaded', summaryId: string): void
+}
+
 const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
 
 const summary = ref<SecuritySummary | null>(null)
 const loading = ref(false)
@@ -192,6 +197,8 @@ async function loadSecuritySummary() {
       // Data is complete summary
       summary.value = response.data as SecuritySummary
       loading.value = false
+      // Emit the summary ID for chat context
+      emit('summaryLoaded', summary.value.id)
     }
   } catch (err) {
     error.value = 'Failed to load security summary. Please try again.'
@@ -229,6 +236,8 @@ async function pollForCompletion() {
         // Data is complete summary
         summary.value = response.data as SecuritySummary
         loading.value = false
+        // Emit the summary ID for chat context
+        emit('summaryLoaded', summary.value.id)
       }
     } catch (err) {
       error.value = 'Failed to check analysis status. Please try again.'

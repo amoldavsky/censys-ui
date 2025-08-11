@@ -29,7 +29,7 @@
     <div v-else-if="webAsset" class="content-with-chat">
       <div class="main-content">
         <!-- AI Security Summary - Show when webAsset is loaded -->
-        <AiSecuritySummary :domain="domain" />
+        <AiSecuritySummary :domain="domain" @summary-loaded="onSummaryLoaded" />
 
           <!-- Basic Information -->
           <v-card class="info-card mb-6" variant="flat">
@@ -111,6 +111,7 @@
         asset-type="web"
         :asset-data="webAsset"
         :suggestions="webSuggestions"
+        :summary-id="summaryId"
       />
     </div>
   </div>
@@ -129,6 +130,7 @@ const domain = decodeURIComponent(route.params.domain as string)
 const webAsset = ref<WebAsset | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
+const summaryId = ref<string | null>(null)
 
 // AI Chat suggestions for web assets
 const webSuggestions = [
@@ -181,6 +183,10 @@ function formatDate(dateString: string): string {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+function onSummaryLoaded(id: string) {
+  summaryId.value = id
 }
 
 onMounted(() => {
