@@ -1,0 +1,299 @@
+<template>
+  <v-card class="ai-summary-card mb-6" variant="flat" :loading="loading">
+    <v-card-title class="d-flex align-center">
+      <v-icon class="mr-2" color="primary">mdi-robot</v-icon>
+      <span class="text-h6">AI Security Summary</span>
+    </v-card-title>
+    <v-divider />
+
+    <v-card-text>
+      <!-- Loading State -->
+      <div v-if="loading" class="loading-container">
+        <div class="text-center pa-6">
+          <div class="text-h6 mb-2">Analyzing Security...</div>
+          <div class="text-body-1 text-medium-emphasis mb-4">
+            Our AI is analyzing the security posture of this web asset
+          </div>
+          <v-progress-linear
+            indeterminate
+            color="primary"
+            height="4"
+            rounded
+          />
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="error-container">
+        <v-alert type="error" variant="tonal" class="mb-4">
+          <v-alert-title>Analysis Failed</v-alert-title>
+          {{ error }}
+        </v-alert>
+        <v-btn
+          variant="outlined"
+          color="primary"
+          @click="retryAnalysis"
+          :loading="loading"
+        >
+          <v-icon left>mdi-refresh</v-icon>
+          Retry Analysis
+        </v-btn>
+      </div>
+
+      <!-- Summary Content -->
+      <div v-else-if="summary" class="summary-content">
+        <!-- Severity Badge and Summary -->
+        <div class="d-flex align-start mb-4">
+          <v-chip
+            :color="getSeverityColor(summary.severity)"
+            variant="flat"
+            size="large"
+            class="mr-3 mt-1"
+          >
+            <v-icon left size="small">{{ getSeverityIcon(summary.severity) }}</v-icon>
+            {{ summary.severity.toUpperCase() }} RISK
+          </v-chip>
+          <div class="flex-grow-1">
+            <p class="text-body-1 mb-0">{{ summary.summary }}</p>
+          </div>
+        </div>
+
+        <!-- Key Findings -->
+        <div v-if="summary.findings.length > 0" class="mb-4">
+          <h4 class="text-subtitle-1 mb-2">
+            <v-icon class="mr-1" size="small">mdi-magnify</v-icon>
+            Key Findings
+          </h4>
+          <ul class="findings-list">
+            <li v-for="finding in summary.findings" :key="finding" class="mb-1">
+              {{ finding }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Recommendations -->
+        <div v-if="summary.recommendations.length > 0" class="mb-4">
+          <h4 class="text-subtitle-1 mb-2">
+            <v-icon class="mr-1" size="small">mdi-lightbulb-outline</v-icon>
+            Recommendations
+          </h4>
+          <ul class="recommendations-list">
+            <li v-for="recommendation in summary.recommendations" :key="recommendation" class="mb-1">
+              {{ recommendation }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Evidence Extras -->
+        <div v-if="summary.evidence_extras.length > 0" class="mb-4">
+          <h4 class="text-subtitle-1 mb-2">
+            <v-icon class="mr-1" size="small">mdi-information-outline</v-icon>
+            Additional Evidence
+          </h4>
+          <ul class="evidence-list">
+            <li v-for="extra in summary.evidence_extras" :key="extra" class="mb-1">
+              {{ extra }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Data Coverage -->
+        <div class="data-coverage mt-4 pt-3" style="border-top: 1px solid var(--v-border-color);">
+          <div class="d-flex align-center justify-between">
+            <span class="text-caption text-medium-emphasis">
+              Data Coverage: {{ summary.data_coverage.fields_present_pct }}%
+            </span>
+            <v-btn
+              variant="text"
+              size="small"
+              @click="showDetails = !showDetails"
+            >
+              {{ showDetails ? 'Hide' : 'Show' }} Details
+              <v-icon right size="small">
+                {{ showDetails ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+              </v-icon>
+            </v-btn>
+          </div>
+          
+          <v-expand-transition>
+            <div v-show="showDetails" class="mt-3">
+              <div v-if="summary.assumptions.length > 0" class="mb-3">
+                <h5 class="text-caption font-weight-bold mb-1">Assumptions:</h5>
+                <ul class="text-caption">
+                  <li v-for="assumption in summary.assumptions" :key="assumption">
+                    {{ assumption }}
+                  </li>
+                </ul>
+              </div>
+              
+              <div v-if="summary.data_coverage.missing_fields.length > 0">
+                <h5 class="text-caption font-weight-bold mb-1">Missing Fields:</h5>
+                <div class="d-flex flex-wrap gap-1">
+                  <v-chip
+                    v-for="field in summary.data_coverage.missing_fields"
+                    :key="field"
+                    size="x-small"
+                    variant="outlined"
+                    color="warning"
+                  >
+                    {{ field }}
+                  </v-chip>
+                </div>
+              </div>
+            </div>
+          </v-expand-transition>
+        </div>
+      </div>
+    </v-card-text>
+  </v-card>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, watch } from 'vue'
+import { apiService, type SecuritySummary } from '@/services/api'
+
+interface Props {
+  domain: string
+}
+
+const props = defineProps<Props>()
+
+const summary = ref<SecuritySummary | null>(null)
+const loading = ref(false)
+const error = ref<string | null>(null)
+const showDetails = ref(false)
+
+async function loadSecuritySummary() {
+  loading.value = true
+  error.value = null
+  summary.value = null
+  
+  try {
+    const response = await apiService.getWebSecuritySummary(props.domain)
+    
+    if (response.status === 'failed') {
+      error.value = response.error || 'Security analysis failed'
+      return
+    }
+    
+    if (response.status === 'complete') {
+      summary.value = response.data
+    } else {
+      // Status is pending or processing, poll for updates
+      pollForCompletion()
+    }
+  } catch (err) {
+    error.value = 'Failed to load security summary. Please try again.'
+    console.error('Error loading security summary:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function pollForCompletion() {
+  const maxAttempts = 30 // 30 attempts with 2 second intervals = 1 minute max
+  let attempts = 0
+  
+  const poll = async () => {
+    if (attempts >= maxAttempts) {
+      error.value = 'Security analysis timed out. Please try again.'
+      loading.value = false
+      return
+    }
+    
+    try {
+      const response = await apiService.getWebSecuritySummary(props.domain)
+      
+      if (response.status === 'complete') {
+        summary.value = response.data
+        loading.value = false
+      } else if (response.status === 'failed') {
+        error.value = response.error || 'Security analysis failed'
+        loading.value = false
+      } else {
+        // Still processing, continue polling
+        attempts++
+        setTimeout(poll, 2000)
+      }
+    } catch (err) {
+      error.value = 'Failed to check analysis status. Please try again.'
+      loading.value = false
+      console.error('Error polling security summary:', err)
+    }
+  }
+  
+  setTimeout(poll, 2000)
+}
+
+function retryAnalysis() {
+  loadSecuritySummary()
+}
+
+function getSeverityColor(severity: string): string {
+  switch (severity) {
+    case 'critical': return 'error'
+    case 'high': return 'warning'
+    case 'medium': return 'info'
+    case 'low': return 'success'
+    default: return 'grey'
+  }
+}
+
+function getSeverityIcon(severity: string): string {
+  switch (severity) {
+    case 'critical': return 'mdi-alert-circle'
+    case 'high': return 'mdi-alert'
+    case 'medium': return 'mdi-alert-outline'
+    case 'low': return 'mdi-check-circle'
+    default: return 'mdi-help-circle'
+  }
+}
+
+// Watch for domain changes
+watch(() => props.domain, () => {
+  loadSecuritySummary()
+})
+
+onMounted(() => {
+  loadSecuritySummary()
+})
+</script>
+
+<style scoped>
+.ai-summary-card {
+  border: 1px solid var(--v-border-color);
+}
+
+.loading-container {
+  min-height: 140px;
+}
+
+.summary-content {
+  /* Add any specific styling for summary content */
+}
+
+.findings-list,
+.recommendations-list,
+.evidence-list {
+  list-style-type: disc;
+  padding-left: 20px;
+  margin: 0;
+}
+
+.findings-list li,
+.recommendations-list li,
+.evidence-list li {
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.data-coverage {
+  background-color: rgba(var(--v-theme-surface-variant), 0.1);
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.gap-1 {
+  gap: 4px;
+}
+</style>

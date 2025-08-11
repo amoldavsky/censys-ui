@@ -35,9 +35,10 @@
       <p class="mt-4">Loading host details...</p>
     </div>
 
-    <div v-else-if="host" class="content">
-      <!-- Basic Information -->
-      <v-card class="info-card mb-6" variant="flat">
+    <div v-else-if="host" class="content-with-chat">
+      <div class="main-content">
+        <!-- Basic Information -->
+        <v-card class="info-card mb-6" variant="flat">
         <v-card-title class="text-h6">Host Information</v-card-title>
         <v-divider />
         <v-card-text>
@@ -184,6 +185,14 @@
           </div>
         </v-card-text>
       </v-card>
+      </div>
+
+      <!-- AI Chat Component -->
+      <AiChat
+        asset-type="host"
+        :asset-data="host"
+        :suggestions="hostSuggestions"
+      />
     </div>
   </div>
 </template>
@@ -194,6 +203,7 @@ import { useRoute } from 'vue-router'
 import { apiService, type Host, type Location } from '@/services/api'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import AiChat from '@/components/AiChat.vue'
 
 const route = useRoute()
 const ip = route.params.ip as string
@@ -204,6 +214,14 @@ const error = ref<string | null>(null)
 const expandedPanels = ref<number[]>([])
 const mapContainer = ref<HTMLElement>()
 const map = ref<L.Map | null>(null)
+
+// AI Chat suggestions for host assets
+const hostSuggestions = [
+  { text: "What are the main security risks for this host?", icon: "mdi-shield-alert" },
+  { text: "Explain the vulnerabilities found", icon: "mdi-bug" },
+  { text: "What services are running on this host?", icon: "mdi-server" },
+  { text: "How can I secure this host better?", icon: "mdi-security" }
+]
 
 async function loadHostDetails() {
   loading.value = true
@@ -323,8 +341,34 @@ onMounted(() => {
 <style scoped>
 .page {
   padding: 12px;
-  max-width: 1200px;
+  max-width: 1600px; /* Increased to accommodate chat */
   margin: 0 auto;
+}
+
+.content-with-chat {
+  margin-right: 320px; /* Make space for fixed chat */
+}
+
+.main-content {
+  width: 100%;
+}
+
+/* Responsive layout adjustments */
+@media (max-width: 960px) {
+  .content-with-chat {
+    margin-right: 0; /* Remove margin when chat is hidden */
+  }
+
+  .page {
+    max-width: 1200px;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 4px;
+  }
 }
 
 .header {

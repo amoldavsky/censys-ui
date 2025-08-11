@@ -35,9 +35,13 @@
       <p class="mt-4">Loading web asset details...</p>
     </div>
 
-    <div v-else-if="webAsset" class="content">
-      <!-- Basic Information -->
-      <v-card class="info-card mb-6" variant="flat">
+    <div v-else-if="webAsset" class="content-with-chat">
+      <div class="main-content">
+        <!-- AI Security Summary - Show when webAsset is loaded -->
+        <AiSecuritySummary :domain="domain" />
+
+          <!-- Basic Information -->
+          <v-card class="info-card mb-6" variant="flat">
         <v-card-title class="text-h6">Web Asset Information</v-card-title>
         <v-divider />
         <v-card-text>
@@ -109,6 +113,14 @@
           </div>
         </v-card-text>
       </v-card>
+      </div>
+
+      <!-- AI Chat Component -->
+      <AiChat
+        asset-type="web"
+        :asset-data="webAsset"
+        :suggestions="webSuggestions"
+      />
     </div>
   </div>
 </template>
@@ -117,6 +129,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { apiService, type WebAsset } from '@/services/api'
+import AiChat from '@/components/AiChat.vue'
+import AiSecuritySummary from '@/components/AiSecuritySummary.vue'
 
 const route = useRoute()
 const domain = decodeURIComponent(route.params.domain as string)
@@ -124,6 +138,14 @@ const domain = decodeURIComponent(route.params.domain as string)
 const webAsset = ref<WebAsset | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
+
+// AI Chat suggestions for web assets
+const webSuggestions = [
+  { text: "What are the certificate security issues?", icon: "mdi-certificate" },
+  { text: "Analyze the SSL/TLS configuration", icon: "mdi-lock" },
+  { text: "What domains are associated with this asset?", icon: "mdi-web" },
+  { text: "How can I improve web security?", icon: "mdi-shield-check" }
+]
 
 async function loadWebAssetDetails() {
   loading.value = true
@@ -176,8 +198,34 @@ onMounted(() => {
 <style scoped>
 .page {
   padding: 12px;
-  max-width: 1200px;
+  max-width: 1600px; /* Increased to accommodate chat */
   margin: 0 auto;
+}
+
+.content-with-chat {
+  margin-right: 320px; /* Make space for fixed chat */
+}
+
+.main-content {
+  width: 100%;
+}
+
+/* Responsive layout adjustments */
+@media (max-width: 960px) {
+  .content-with-chat {
+    margin-right: 0; /* Remove margin when chat is hidden */
+  }
+
+  .page {
+    max-width: 1200px;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 4px;
+  }
 }
 
 .header {

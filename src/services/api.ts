@@ -5,7 +5,7 @@ import mockWebAssets from '@/mock/web.json'
 const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1`
 
 // Configuration: Set to false to use real API, true to use mock data
-const USE_MOCK_DATA = false;
+const USE_MOCK_DATA = true;
 
 export interface Location {
   city: string
@@ -47,6 +47,79 @@ export interface Service {
 export interface ThreatIntelligence {
   security_labels: string[]
   risk_level: 'critical' | 'high' | 'medium' | 'low'
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface ChatRequest {
+  messages: ChatMessage[]
+  asset_data?: any
+}
+
+export interface ChatResponse {
+  message: string
+}
+
+export interface ChatApiResponse {
+  success: boolean
+  data: {
+    role: string
+    content: string
+  }
+}
+
+export interface SecuritySummaryEvidence {
+  domain: string | null
+  cert_sha256: string | null
+  issuer: string | null
+  not_before: string | null
+  not_after: string | null
+  days_to_expiry: number | null
+  key_type: string | null
+  key_bits: number | null
+  sig_alg: string | null
+  san_count: number | null
+  wildcard: boolean | null
+  https_redirect: boolean | null
+  waf_or_cdn_hint: string | null
+  ct_logs_count: number | null
+}
+
+export interface SecuritySummaryDataCoverage {
+  fields_present_pct: number
+  missing_fields: string[]
+}
+
+export interface SecuritySummary {
+  id: string
+  summary: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  evidence: SecuritySummaryEvidence
+  evidence_extras: string[]
+  findings: string[]
+  recommendations: string[]
+  assumptions: string[]
+  data_coverage: SecuritySummaryDataCoverage
+}
+
+export interface SecuritySummaryResponse {
+  success: boolean
+  data: SecuritySummary
+  status: 'pending' | 'processing' | 'complete' | 'failed'
+  error?: string
+}
+
+export interface SuggestionCard {
+  text: string
+  icon: string
+}
+
+export interface AssetSuggestions {
+  host: SuggestionCard[]
+  web: SuggestionCard[]
 }
 
 // Simple Host interface matching the actual API response
@@ -412,6 +485,130 @@ class ApiService {
   // Legacy method for backward compatibility
   async uploadAssets(file: File): Promise<any> {
     return this.uploadHostAssets(file)
+  }
+
+  // Chat Methods
+  async sendChatMessage(messages: ChatMessage[], assetData?: any): Promise<ChatResponse> {
+    try {
+      const requestBody: ChatRequest = {
+        messages
+      }
+
+      // Only include asset_data if it exists
+      if (assetData) {
+        requestBody.asset_data = assetData
+      }
+
+      const response = await fetch(`${API_BASE_URL}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const apiResponse: ChatApiResponse = await response.json()
+
+      // Transform the API response to match what the frontend expects
+      return {
+        message: apiResponse.data.content
+      }
+    } catch (error) {
+      console.error('Chat API failed:', error)
+      throw error
+    }
+  }
+
+  // Security Summary Methods
+  private summaryRequestCount = new Map<string, number>()
+
+  async getWebSecuritySummary(domain: string): Promise<SecuritySummaryResponse> {
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // Track request count for this domain to simulate polling
+          const requestCount = this.summaryRequestCount.get(domain) || 0
+          this.summaryRequestCount.set(domain, requestCount + 1)
+
+          // Simulate different statuses based on request count
+          if (requestCount === 0) {
+            // First request - return processing
+            resolve({
+              success: true,
+              data: {} as SecuritySummary,
+              status: "processing"
+            })
+            return
+          } else if (requestCount === 1) {
+            // Second request - still processing
+            resolve({
+              success: true,
+              data: {} as SecuritySummary,
+              status: "processing"
+            })
+            return
+          }
+
+          // Third request and beyond - return complete
+          const mockSummary: SecuritySummary = {
+            id: domain,
+            summary: "This web asset shows moderate security concerns with an expiring certificate and potential configuration issues.",
+            severity: "medium",
+            evidence: {
+              domain: domain,
+              cert_sha256: "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+              issuer: "Let's Encrypt",
+              not_before: "2024-08-01T00:00:00Z",
+              not_after: "2025-09-03T23:59:59Z",
+              days_to_expiry: 24,
+              key_type: "RSA",
+              key_bits: 2048,
+              sig_alg: "SHA256-RSA",
+              san_count: 2,
+              wildcard: false,
+              https_redirect: true,
+              waf_or_cdn_hint: "Cloudflare",
+              ct_logs_count: 3
+            },
+            evidence_extras: [
+              "Certificate transparency logs show recent issuance",
+              "WAF protection detected but may have bypass vulnerabilities"
+            ],
+            findings: [
+              "Certificate expires in 24 days (not_after 2025-09-03)",
+              "RSA 2048-bit key meets current standards",
+              "Cloudflare WAF detected providing additional protection"
+            ],
+            recommendations: [
+              "Schedule certificate renewal within 14 days",
+              "Consider upgrading to ECDSA certificates for better performance",
+              "Review WAF configuration for potential bypasses"
+            ],
+            assumptions: [
+              "Certificate data assumed current based on last scan",
+              "WAF detection based on response headers"
+            ],
+            data_coverage: {
+              fields_present_pct: 85,
+              missing_fields: ["extended_validation", "ocsp_stapling"]
+            }
+          }
+
+          resolve({
+            success: true,
+            data: mockSummary,
+            status: "complete"
+          })
+        }, 500) // Faster response for polling
+      })
+    }
+
+    const response = await this.request<SecuritySummaryResponse>(`/assets/web/${domain}/security-summary`)
+    return response
   }
 }
 

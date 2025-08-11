@@ -9,6 +9,15 @@
                 "updated_at": "2025-08-10T20:59:47.951Z",
                 "ip": "168.196.241.227",
                 "as_name": "Udasha S.A.",
+                "location": {
+                    "city": "Buenos Aires",
+                    "country": "Argentina",
+                    "country_code": "AR",
+                    "coordinates": {
+                        "latitude": -34.6118,
+                        "longitude": -58.3960
+                    }
+                },
                 "services": [
                     {
                         "port": 11558,
@@ -46,6 +55,15 @@
                 "updated_at": "2025-08-10T20:59:47.951Z",
                 "ip": "1.92.135.168",
                 "as_name": "HWCSNET Huawei Cloud Service data center",
+                "location": {
+                    "city": "Beijing",
+                    "country": "China",
+                    "country_code": "CN",
+                    "coordinates": {
+                        "latitude": 39.9042,
+                        "longitude": 116.4074
+                    }
+                },
                 "services": [
                     {
                         "port": 22,
@@ -102,6 +120,15 @@
                 "updated_at": "2025-08-10T20:59:47.951Z",
                 "ip": "1.94.62.205",
                 "as_name": "HWCSNET Huawei Cloud Service data center",
+                "location": {
+                    "city": "Shanghai",
+                    "country": "China",
+                    "country_code": "CN",
+                    "coordinates": {
+                        "latitude": 31.2304,
+                        "longitude": 121.4737
+                    }
+                },
                 "services": [
                     {
                         "port": 21,
