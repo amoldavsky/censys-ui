@@ -132,10 +132,12 @@ const error = ref<string | null>(null)
 
 // AI Chat suggestions for web assets
 const webSuggestions = [
-  { text: "What are the certificate security issues?", icon: "mdi-certificate" },
-  { text: "Analyze the SSL/TLS configuration", icon: "mdi-lock" },
-  { text: "What domains are associated with this asset?", icon: "mdi-web" },
-  { text: "How can I improve web security?", icon: "mdi-shield-check" }
+  { text: "What are the main security risks for this domain?", icon: "mdi-shield-alert" },
+  { text: "How secure is the SSL/TLS certificate?", icon: "mdi-certificate" },
+  { text: "What should I prioritize for remediation?", icon: "mdi-format-list-numbered" },
+  { text: "Are there any compliance issues to address?", icon: "mdi-clipboard-check" },
+  { text: "How does this compare to security best practices?", icon: "mdi-star-check" },
+  { text: "What monitoring should I set up?", icon: "mdi-monitor-eye" }
 ]
 
 async function loadWebAssetDetails() {

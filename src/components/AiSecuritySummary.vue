@@ -67,7 +67,7 @@
         </div>
 
         <!-- Key Findings -->
-        <div v-if="summary.findings.length > 0" class="mb-4">
+        <div v-if="summary.findings && summary.findings.length > 0" class="mb-4">
           <h4 class="text-subtitle-1 mb-2">
             <v-icon class="mr-1" size="small">mdi-magnify</v-icon>
             Key Findings
@@ -80,7 +80,7 @@
         </div>
 
         <!-- Recommendations -->
-        <div v-if="summary.recommendations.length > 0" class="mb-4">
+        <div v-if="summary.recommendations && summary.recommendations.length > 0" class="mb-4">
           <h4 class="text-subtitle-1 mb-2">
             <v-icon class="mr-1" size="small">mdi-lightbulb-outline</v-icon>
             Recommendations
@@ -93,7 +93,7 @@
         </div>
 
         <!-- Evidence Extras -->
-        <div v-if="summary.evidence_extras.length > 0" class="mb-4">
+        <div v-if="summary.evidence_extras && summary.evidence_extras.length > 0" class="mb-4">
           <h4 class="text-subtitle-1 mb-2">
             <v-icon class="mr-1" size="small">mdi-information-outline</v-icon>
             Additional Evidence
@@ -109,7 +109,7 @@
         <div class="data-coverage mt-4 pt-3" style="border-top: 1px solid var(--v-border-color);">
           <div class="d-flex align-center justify-between">
             <span class="text-caption text-medium-emphasis">
-              Data Coverage: {{ summary.data_coverage.fields_present_pct }}%
+              Data Coverage: {{ summary.data_coverage?.fields_present_pct || 0 }}%
             </span>
             <v-btn
               variant="text"
@@ -125,7 +125,7 @@
           
           <v-expand-transition>
             <div v-show="showDetails" class="mt-3">
-              <div v-if="summary.assumptions.length > 0" class="mb-3">
+              <div v-if="summary.assumptions && summary.assumptions.length > 0" class="mb-3">
                 <h5 class="text-caption font-weight-bold mb-1">Assumptions:</h5>
                 <ul class="text-caption">
                   <li v-for="assumption in summary.assumptions" :key="assumption">
@@ -133,8 +133,8 @@
                   </li>
                 </ul>
               </div>
-              
-              <div v-if="summary.data_coverage.missing_fields.length > 0">
+
+              <div v-if="summary.data_coverage && summary.data_coverage.missing_fields && summary.data_coverage.missing_fields.length > 0">
                 <h5 class="text-caption font-weight-bold mb-1">Missing Fields:</h5>
                 <div class="d-flex flex-wrap gap-1">
                   <v-chip
@@ -175,25 +175,27 @@ async function loadSecuritySummary() {
   loading.value = true
   error.value = null
   summary.value = null
-  
+
   try {
     const response = await apiService.getWebSecuritySummary(props.domain)
-    
-    if (response.status === 'failed') {
+
+    if (!response.success) {
       error.value = response.error || 'Security analysis failed'
       return
     }
-    
-    if (response.status === 'complete') {
-      summary.value = response.data
-    } else {
+
+    // Check if data has status field (incomplete) or full summary (complete)
+    if ('status' in response.data && (response.data.status === 'pending' || response.data.status === 'processing')) {
       // Status is pending or processing, poll for updates
       pollForCompletion()
+    } else {
+      // Data is complete summary
+      summary.value = response.data as SecuritySummary
+      loading.value = false
     }
   } catch (err) {
     error.value = 'Failed to load security summary. Please try again.'
     console.error('Error loading security summary:', err)
-  } finally {
     loading.value = false
   }
 }
@@ -211,17 +213,22 @@ async function pollForCompletion() {
     
     try {
       const response = await apiService.getWebSecuritySummary(props.domain)
-      
-      if (response.status === 'complete') {
-        summary.value = response.data
-        loading.value = false
-      } else if (response.status === 'failed') {
+
+      if (!response.success) {
         error.value = response.error || 'Security analysis failed'
         loading.value = false
-      } else {
+        return
+      }
+
+      // Check if data has status field (incomplete) or full summary (complete)
+      if ('status' in response.data && (response.data.status === 'pending' || response.data.status === 'processing')) {
         // Still processing, continue polling
         attempts++
         setTimeout(poll, 1000)
+      } else {
+        // Data is complete summary
+        summary.value = response.data as SecuritySummary
+        loading.value = false
       }
     } catch (err) {
       error.value = 'Failed to check analysis status. Please try again.'

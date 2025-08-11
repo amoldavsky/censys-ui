@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import AssetsView from '@/views/AssetsView.vue'
 import HostsView from '@/views/HostsView.vue'
 import HostDetailsView from '@/views/HostDetailsView.vue'
 import WebView from '@/views/WebView.vue'
@@ -7,8 +6,7 @@ import WebDetailsView from '@/views/WebDetailsView.vue'
 import DataView from '@/views/DataView.vue'
 
 const routes = [
-  { path: '/', redirect: '/assets' },
-  { path: '/assets', component: AssetsView, meta: { title: 'Assets' } },
+  { path: '/', redirect: '/hosts' },
   { path: '/hosts', component: HostsView, meta: { title: 'Hosts' } },
   { path: '/hosts/:ip', component: HostDetailsView, meta: { title: 'Host Details' } },
   { path: '/web', component: WebView, meta: { title: 'Web Assets' } },

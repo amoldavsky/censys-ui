@@ -41,12 +41,6 @@
     >
       <v-list density="comfortable" nav>
         <v-list-item
-          title="Assets"
-          prepend-icon="mdi-lan"
-          to="/assets"
-          :active="isRouteActive('/assets')"
-        />
-        <v-list-item
           title="Hosts"
           prepend-icon="mdi-server"
           to="/hosts"

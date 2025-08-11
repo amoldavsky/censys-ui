@@ -5,7 +5,7 @@ import mockWebAssets from '@/mock/web.json'
 const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1`
 
 // Configuration: Set to false to use real API, true to use mock data
-const USE_MOCK_DATA = true;
+const USE_MOCK_DATA = false;
 
 export interface Location {
   city: string
@@ -72,20 +72,30 @@ export interface ChatApiResponse {
 }
 
 export interface SecuritySummaryEvidence {
-  domain: string | null
-  cert_sha256: string | null
-  issuer: string | null
-  not_before: string | null
-  not_after: string | null
-  days_to_expiry: number | null
-  key_type: string | null
-  key_bits: number | null
-  sig_alg: string | null
-  san_count: number | null
-  wildcard: boolean | null
-  https_redirect: boolean | null
-  waf_or_cdn_hint: string | null
-  ct_logs_count: number | null
+  // Web asset evidence
+  domain?: string | null
+  cert_sha256?: string | null
+  issuer?: string | null
+  not_before?: string | null
+  not_after?: string | null
+  days_to_expiry?: number | null
+  key_type?: string | null
+  key_bits?: number | null
+  sig_alg?: string | null
+  san_count?: number | null
+  wildcard?: boolean | null
+  https_redirect?: boolean | null
+  waf_or_cdn_hint?: string | null
+  ct_logs_count?: number | null
+
+  // Host asset evidence
+  ip?: string | null
+  open_ports_count?: number | null
+  risky_services_count?: number | null
+  insecure_services_count?: number | null
+  hostnames?: string[]
+  os_fingerprint?: string | null
+  services?: any[]
 }
 
 export interface SecuritySummaryDataCoverage {
@@ -98,17 +108,20 @@ export interface SecuritySummary {
   summary: string
   severity: 'low' | 'medium' | 'high' | 'critical'
   evidence: SecuritySummaryEvidence
-  evidence_extras: string[]
+  evidence_extras?: string[]
   findings: string[]
   recommendations: string[]
   assumptions: string[]
   data_coverage: SecuritySummaryDataCoverage
+  status: 'pending' | 'processing' | 'complete'
+  created_at: string
+  updated_at: string
+  _id?: string
 }
 
 export interface SecuritySummaryResponse {
   success: boolean
-  data: SecuritySummary
-  status: 'pending' | 'processing' | 'complete' | 'failed'
+  data: SecuritySummary | { status: 'pending' | 'processing' }
   error?: string
 }
 
@@ -391,14 +404,7 @@ class ApiService {
     return response.data
   }
 
-  // Legacy methods for backward compatibility
-  async getAssets(): Promise<Host[]> {
-    return this.getHostAssets()
-  }
 
-  async getAssetByIp(ip: string): Promise<Host> {
-    return this.getHostAssetByIp(ip)
-  }
 
   async uploadHostAssets(file: File): Promise<any> {
     if (USE_MOCK_DATA) {
@@ -482,10 +488,7 @@ class ApiService {
     }
   }
 
-  // Legacy method for backward compatibility
-  async uploadAssets(file: File): Promise<any> {
-    return this.uploadHostAssets(file)
-  }
+
 
   // Chat Methods
   async sendChatMessage(messages: ChatMessage[], assetData?: any): Promise<ChatResponse> {
@@ -539,16 +542,14 @@ class ApiService {
             // First request - return processing
             resolve({
               success: true,
-              data: {} as SecuritySummary,
-              status: "processing"
+              data: { status: "processing" }
             })
             return
           } else if (requestCount === 1) {
             // Second request - still processing
             resolve({
               success: true,
-              data: {} as SecuritySummary,
-              status: "processing"
+              data: { status: "processing" }
             })
             return
           }
@@ -595,19 +596,108 @@ class ApiService {
             data_coverage: {
               fields_present_pct: 85,
               missing_fields: ["extended_validation", "ocsp_stapling"]
-            }
+            },
+            status: "complete",
+            created_at: "2025-01-01T00:00:00.000Z",
+            updated_at: "2025-01-01T00:00:00.000Z"
           }
 
           resolve({
             success: true,
-            data: mockSummary,
-            status: "complete"
+            data: mockSummary
           })
         }, 200) // Faster response for polling
       })
     }
 
-    const response = await this.request<SecuritySummaryResponse>(`/assets/web/${domain}/security-summary`)
+    const response = await this.request<SecuritySummaryResponse>(`/assets/web/${domain}/summary`)
+    return response
+  }
+
+  async getHostSecuritySummary(ip: string): Promise<SecuritySummaryResponse> {
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // Track request count for this IP to simulate polling
+          const requestCount = this.summaryRequestCount.get(ip) || 0
+          this.summaryRequestCount.set(ip, requestCount + 1)
+
+          // Simulate different statuses based on request count
+          if (requestCount === 0) {
+            // First request - return processing
+            resolve({
+              success: true,
+              data: { status: "processing" }
+            })
+            return
+          } else if (requestCount === 1) {
+            // Second request - still processing
+            resolve({
+              success: true,
+              data: { status: "processing" }
+            })
+            return
+          }
+
+          // Third request and beyond - return complete
+          const mockSummary: SecuritySummary = {
+            id: ip,
+            summary: "This host shows critical security vulnerabilities with multiple CVEs and exposed services requiring immediate attention.",
+            severity: "critical",
+            evidence: {
+              domain: null,
+              cert_sha256: null,
+              issuer: null,
+              not_before: null,
+              not_after: null,
+              days_to_expiry: null,
+              key_type: null,
+              key_bits: null,
+              sig_alg: null,
+              san_count: null,
+              wildcard: null,
+              https_redirect: null,
+              waf_or_cdn_hint: null,
+              ct_logs_count: null
+            },
+            evidence_extras: [
+              "SSH service exposed on non-standard port 11558",
+              "Multiple critical CVEs detected in OpenSSH version",
+              "Host located in high-risk geographic region"
+            ],
+            findings: [
+              "Critical vulnerability CVE-2023-38408 with CVSS 9.8 detected",
+              "High severity vulnerability CVE-2024-6387 with CVSS 8.1 found",
+              "SSH service running on unusual port 11558"
+            ],
+            recommendations: [
+              "Immediately patch OpenSSH to latest version",
+              "Consider moving SSH to standard port 22 or implement port knocking",
+              "Enable fail2ban or similar intrusion prevention system",
+              "Review and restrict SSH access by IP whitelist"
+            ],
+            assumptions: [
+              "Service detection based on banner analysis",
+              "CVE matching based on reported software versions"
+            ],
+            data_coverage: {
+              fields_present_pct: 75,
+              missing_fields: ["ssl_certificates", "web_technologies", "dns_records"]
+            },
+            status: "complete",
+            created_at: "2025-01-01T00:00:00.000Z",
+            updated_at: "2025-01-01T00:00:00.000Z"
+          }
+
+          resolve({
+            success: true,
+            data: mockSummary
+          })
+        }, 200) // Faster response for polling
+      })
+    }
+
+    const response = await this.request<SecuritySummaryResponse>(`/assets/hosts/${ip}/summary`)
     return response
   }
 }
