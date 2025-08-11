@@ -37,6 +37,9 @@
 
     <div v-else-if="host" class="content-with-chat">
       <div class="main-content">
+        <!-- AI Security Summary - Show when host is loaded -->
+        <AiSecuritySummary :ip="ip" @summary-loaded="onSummaryLoaded" />
+
         <!-- Basic Information -->
         <v-card class="info-card mb-6" variant="flat">
         <v-card-title class="text-h6">Host Information</v-card-title>
@@ -192,6 +195,7 @@
         asset-type="host"
         :asset-data="host"
         :suggestions="hostSuggestions"
+        :summary-id="summaryId"
       />
     </div>
   </div>
@@ -204,6 +208,7 @@ import { apiService, type Host, type Location } from '@/services/api'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import AiChat from '@/components/AiChat.vue'
+import AiSecuritySummary from '@/components/AiSecuritySummary.vue'
 
 const route = useRoute()
 const ip = route.params.ip as string
@@ -214,13 +219,16 @@ const error = ref<string | null>(null)
 const expandedPanels = ref<number[]>([])
 const mapContainer = ref<HTMLElement>()
 const map = ref<L.Map | null>(null)
+const summaryId = ref<string | null>(null)
 
 // AI Chat suggestions for host assets
 const hostSuggestions = [
   { text: "What are the main security risks for this host?", icon: "mdi-shield-alert" },
   { text: "Explain the vulnerabilities found", icon: "mdi-bug" },
   { text: "What services are running on this host?", icon: "mdi-server" },
-  { text: "How can I secure this host better?", icon: "mdi-security" }
+  { text: "What should I prioritize for remediation?", icon: "mdi-format-list-numbered" },
+  { text: "How can I secure this host better?", icon: "mdi-security" },
+  { text: "What monitoring should I set up?", icon: "mdi-monitor-eye" }
 ]
 
 async function loadHostDetails() {
@@ -331,6 +339,10 @@ function initializeMap() {
   } catch (error) {
     console.error('Error initializing map:', error)
   }
+}
+
+function onSummaryLoaded(id: string) {
+  summaryId.value = id
 }
 
 onMounted(() => {

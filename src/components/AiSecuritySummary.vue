@@ -38,7 +38,7 @@
         <div class="text-center pa-6">
           <div class="text-h6 mb-2">Analyzing Security...</div>
           <div class="text-body-1 text-medium-emphasis mb-4">
-            Our AI is analyzing the security posture of this web asset
+            Our AI is analyzing the security posture of this {{ domain ? 'web' : 'host' }} asset
           </div>
           <v-skeleton-loader
             type="card"
@@ -161,7 +161,8 @@ import { ref, onMounted, watch } from 'vue'
 import { apiService, type SecuritySummary } from '@/services/api'
 
 interface Props {
-  domain: string
+  domain?: string
+  ip?: string
 }
 
 interface Emits {
@@ -182,7 +183,16 @@ async function loadSecuritySummary() {
   summary.value = null
 
   try {
-    const response = await apiService.getWebSecuritySummary(props.domain)
+    let response
+    if (props.domain) {
+      response = await apiService.getWebSecuritySummary(props.domain)
+    } else if (props.ip) {
+      response = await apiService.getHostSecuritySummary(props.ip)
+    } else {
+      error.value = 'Either domain or IP must be provided'
+      loading.value = false
+      return
+    }
 
     if (!response.success) {
       error.value = response.error || 'Security analysis failed'
@@ -219,7 +229,16 @@ async function pollForCompletion() {
     }
     
     try {
-      const response = await apiService.getWebSecuritySummary(props.domain)
+      let response
+      if (props.domain) {
+        response = await apiService.getWebSecuritySummary(props.domain)
+      } else if (props.ip) {
+        response = await apiService.getHostSecuritySummary(props.ip)
+      } else {
+        error.value = 'Either domain or IP must be provided'
+        loading.value = false
+        return
+      }
 
       if (!response.success) {
         error.value = response.error || 'Security analysis failed'
@@ -273,8 +292,8 @@ function getSeverityIcon(severity: string): string {
   }
 }
 
-// Watch for domain changes
-watch(() => props.domain, () => {
+// Watch for domain or IP changes
+watch([() => props.domain, () => props.ip], () => {
   loadSecuritySummary()
 })
 
