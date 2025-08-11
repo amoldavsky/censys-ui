@@ -2,7 +2,32 @@
 
 ## API URL Configuration
 
-The application uses environment variables to configure the API base URL. The API service automatically appends `/api/v1` to the configured URL.
+The application uses the `VITE_API_URL` environment variable to configure the API base URL. The API service automatically appends `/api/v1` to the configured URL.
+
+### For Render Deployment
+
+**The issue:** `VITE_API_URL` environment variables set in Render's dashboard don't work because Vite environment variables are build-time only, but Render sets them at runtime.
+
+**Solution:** Set the environment variable during the build process in Render:
+
+1. **In Render Dashboard:**
+   - Go to your service settings
+   - Under "Build & Deploy" → "Build Command", change from:
+     ```
+     npm run build
+     ```
+     to:
+     ```
+     VITE_API_URL=$API_URL npm run build
+     ```
+
+2. **Set Environment Variable:**
+   - Variable: `API_URL`
+   - Value: `https://your-api-url.com`
+
+3. **Start Command:** `npm run serve`
+
+This way, the `API_URL` runtime environment variable gets passed to `VITE_API_URL` during the build process.
 
 ### Environment Files
 
@@ -47,16 +72,28 @@ ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 ```
 
+### Alternative: Environment-Specific Builds
+
+You can also use the environment-specific build commands:
+
+```bash
+# For dev/staging
+npm run build:dev
+
+# For production
+npm run build:prod
+```
+
 ### CI/CD Pipeline Example
 
 ```yaml
 # GitHub Actions example
 - name: Build for Dev
   run: npm run build:dev
-  
+
 - name: Build for Production
   run: npm run build:prod
-  
+
 # Or with custom URL
 - name: Build with Custom API
   run: npm run build
@@ -74,3 +111,23 @@ const USE_MOCK_DATA = false; // Set to true for mock data
 ```
 
 This can be configured per environment if needed.
+
+## Troubleshooting
+
+### VITE_API_URL not working in Render
+
+**Problem:** `VITE_API_URL` environment variable set in Render's dashboard doesn't work.
+
+**Root Cause:** Vite environment variables are build-time only, but Render sets environment variables at runtime.
+
+**Solution:** Pass the runtime environment variable to the build command:
+```bash
+# In Render's Build Command setting:
+VITE_API_URL=$API_URL npm run build
+```
+
+Then set `API_URL` in Render's environment variables.
+
+### Checking API URL
+
+You can check the API URL being used by looking at the network requests in browser dev tools, or by adding a console log in the API service.
