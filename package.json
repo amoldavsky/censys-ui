@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "bunx vite",
     "build": "bunx vite build",
+    "build:dev": "bunx vite build --mode staging",
+    "build:prod": "bunx vite build --mode production",
     "preview": "bunx vite preview",
     "serve": "bun run server.ts"
   },
