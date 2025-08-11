@@ -14,15 +14,6 @@
       
       <div class="title-section">
         <h1 class="title">{{ webAsset?.id || domain }}</h1>
-        <v-chip 
-          v-if="webAsset"
-          :color="getRiskColor(webAsset.risks)" 
-          size="large" 
-          variant="flat"
-          class="risk-chip"
-        >
-          {{ webAsset.risks.toUpperCase() }} RISK
-        </v-chip>
       </div>
     </div>
 
