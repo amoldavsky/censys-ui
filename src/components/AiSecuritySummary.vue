@@ -1,5 +1,14 @@
 <template>
   <v-card class="ai-summary-card mb-6" variant="flat" :loading="loading">
+    <template #loader="{ isActive }">
+      <v-progress-linear
+        :active="isActive"
+        color="primary"
+        height="4"
+        indeterminate
+      />
+    </template>
+
     <v-card-title class="d-flex align-center">
       <v-icon class="mr-2" color="primary">mdi-robot</v-icon>
       <span class="text-h6">AI Security Summary</span>
@@ -7,24 +16,8 @@
     <v-divider />
 
     <v-card-text>
-      <!-- Loading State -->
-      <div v-if="loading" class="loading-container">
-        <div class="text-center pa-6">
-          <div class="text-h6 mb-2">Analyzing Security...</div>
-          <div class="text-body-1 text-medium-emphasis mb-4">
-            Our AI is analyzing the security posture of this web asset
-          </div>
-          <v-progress-linear
-            indeterminate
-            color="primary"
-            height="4"
-            rounded
-          />
-        </div>
-      </div>
-
       <!-- Error State -->
-      <div v-else-if="error" class="error-container">
+      <div v-if="error" class="error-container">
         <v-alert type="error" variant="tonal" class="mb-4">
           <v-alert-title>Analysis Failed</v-alert-title>
           {{ error }}
@@ -40,6 +33,21 @@
         </v-btn>
       </div>
 
+      <!-- Loading State -->
+      <div v-else-if="loading" class="loading-container">
+        <div class="text-center pa-6">
+          <div class="text-h6 mb-2">Analyzing Security...</div>
+          <div class="text-body-1 text-medium-emphasis mb-4">
+            Our AI is analyzing the security posture of this web asset
+          </div>
+          <v-skeleton-loader
+            type="card"
+            :loading="true"
+            height="200"
+          />
+        </div>
+      </div>
+
       <!-- Summary Content -->
       <div v-else-if="summary" class="summary-content">
         <!-- Severity Badge and Summary -->
@@ -48,10 +56,10 @@
             :color="getSeverityColor(summary.severity)"
             variant="flat"
             size="large"
-            class="mr-3 mt-1"
+            class="mr-3 mt-1 flex-shrink-0"
           >
             <v-icon left size="small">{{ getSeverityIcon(summary.severity) }}</v-icon>
-            {{ summary.severity.toUpperCase() }} RISK
+            {{ summary.severity.toUpperCase() }}
           </v-chip>
           <div class="flex-grow-1">
             <p class="text-body-1 mb-0">{{ summary.summary }}</p>
@@ -213,7 +221,7 @@ async function pollForCompletion() {
       } else {
         // Still processing, continue polling
         attempts++
-        setTimeout(poll, 2000)
+        setTimeout(poll, 1000)
       }
     } catch (err) {
       error.value = 'Failed to check analysis status. Please try again.'
@@ -222,7 +230,7 @@ async function pollForCompletion() {
     }
   }
   
-  setTimeout(poll, 2000)
+  setTimeout(poll, 1000)
 }
 
 function retryAnalysis() {
@@ -265,7 +273,7 @@ onMounted(() => {
 }
 
 .loading-container {
-  min-height: 140px;
+  min-height: 280px;
 }
 
 .summary-content {

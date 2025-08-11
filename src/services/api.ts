@@ -603,7 +603,7 @@ class ApiService {
             data: mockSummary,
             status: "complete"
           })
-        }, 500) // Faster response for polling
+        }, 200) // Faster response for polling
       })
     }
 
