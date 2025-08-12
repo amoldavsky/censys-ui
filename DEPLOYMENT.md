@@ -142,7 +142,29 @@ Then set `API_URL` in Render's environment variables.
 **Testing:** After deployment, these URLs should work:
 - `https://your-app.onrender.com/hosts`
 - `https://your-app.onrender.com/web`
-- `https://your-app.onrender.com/hosts/1.2.3.4`
+- `https://your-app.onrender.com/hosts/192.168.1.100`
+- `https://your-app.onrender.com/web/example.com`
+
+**Debugging SPA Routing Issues:**
+
+1. **Check Render Logs:**
+   - Go to Render Dashboard → Your Service → Logs
+   - Look for messages like:
+     - `🔄 SPA route: /hosts/192.168.1.100 -> index.html`
+     - `✓ Serving static file: /assets/...`
+     - `❌ CRITICAL: index.html not found`
+
+2. **Common Issues:**
+   - Build failed: Check build logs for errors
+   - Missing index.html: Ensure `npm run build` completed successfully
+   - Wrong build command: Should be `VITE_API_URL=$API_URL npm run build`
+
+3. **Test Locally:**
+   ```bash
+   npm run build
+   npm run serve
+   # Then test: http://localhost:3000/hosts/192.168.1.100
+   ```
 
 ### Checking API URL
 

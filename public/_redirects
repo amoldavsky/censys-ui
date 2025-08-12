@@ -1,2 +1,6 @@
-# Redirect all non-file requests to index.html for SPA routing
+# SPA routing - redirect all non-file requests to index.html
+# This handles direct URL access like /hosts/192.168.1.100
 /*    /index.html   200
+
+# Alternative format that some platforms prefer
+# /* /index.html 200
