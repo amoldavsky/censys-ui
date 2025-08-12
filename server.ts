@@ -8,12 +8,39 @@ const server = Bun.serve({
   async fetch(req) {
     const url = new URL(req.url);
     let pathname = decodeURIComponent(url.pathname);
-    if (pathname.endsWith("/")) pathname += "index.html";
-    const file = Bun.file(join(dist, pathname));
-    if (await file.exists()) return new Response(file);
-    // SPA fallback
+
+    console.log(`Request: ${req.method} ${pathname}`);
+
+    // Handle root path
+    if (pathname === "/") {
+      pathname = "index.html";
+    }
+
+    // Check if this is a request for a static asset
+    const isStaticAsset = pathname.includes('.') || pathname.startsWith('/assets/');
+
+    if (isStaticAsset) {
+      // Try to serve static files (assets, js, css, etc.)
+      const file = Bun.file(join(dist, pathname));
+      if (await file.exists()) {
+        console.log(`Serving static file: ${pathname}`);
+        return new Response(file);
+      } else {
+        console.log(`Static file not found: ${pathname}`);
+        return new Response("Not Found", { status: 404 });
+      }
+    }
+
+    // For all other routes (SPA routes like /hosts, /web, etc.), serve index.html
+    // This is crucial for client-side routing to work
+    console.log(`Serving SPA route: ${pathname} -> index.html`);
     const index = Bun.file(join(dist, "index.html"));
-    return new Response(index, { headers: { "Content-Type": "text/html" } });
+    return new Response(index, {
+      headers: {
+        "Content-Type": "text/html",
+        "Cache-Control": "no-cache" // Prevent caching of the SPA entry point
+      }
+    });
   },
 });
 

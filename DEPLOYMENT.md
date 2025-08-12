@@ -128,6 +128,22 @@ VITE_API_URL=$API_URL npm run build
 
 Then set `API_URL` in Render's environment variables.
 
+### SPA Routing Issues (Direct URL Access)
+
+**Problem:** URLs like `https://your-app.onrender.com/hosts` return 404 or don't load the correct page.
+
+**Root Cause:** This is a common SPA (Single Page Application) routing issue. When you navigate directly to `/hosts`, the server looks for a file at that path, but only `/index.html` exists.
+
+**Solutions Implemented:**
+
+1. **Server-side fallback:** The server now serves `index.html` for all non-static routes
+2. **_redirects file:** Added `public/_redirects` file that tells Render to redirect all routes to `index.html`
+
+**Testing:** After deployment, these URLs should work:
+- `https://your-app.onrender.com/hosts`
+- `https://your-app.onrender.com/web`
+- `https://your-app.onrender.com/hosts/1.2.3.4`
+
 ### Checking API URL
 
 You can check the API URL being used by looking at the network requests in browser dev tools, or by adding a console log in the API service.
