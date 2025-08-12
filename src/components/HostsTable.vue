@@ -42,12 +42,24 @@
 
       <template #item.risk="{ item }">
         <v-chip
-          :color="getRiskColor(item.risk)"
+          v-if="item.risk"
+          :color="getRiskColor(item.risk || '')"
           size="small"
           variant="flat"
         >
           {{ item.risk.toUpperCase() }}
         </v-chip>
+        <span v-else class="text-caption">N/A</span>
+      </template>
+
+      <template #item.actions="{ item }">
+        <v-btn
+          icon="mdi-delete"
+          size="small"
+          color="error"
+          variant="text"
+          @click.stop="$emit('delete', item)"
+        />
       </template>
 
       <template #bottom></template>
@@ -70,12 +82,17 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false
 })
 
+const emit = defineEmits<{
+  delete: [host: Host]
+}>()
+
 const headers = [
   { title: 'IP Address', key: 'ip', width: 150 },
   { title: 'Location', key: 'location', width: 200 },
   { title: 'AS Name', key: 'as_name', width: 250 },
   { title: 'Services', key: 'services', width: 250 },
-  { title: 'Risk Level', key: 'risk', align: 'end', width: 120 }
+  { title: 'Risk Level', key: 'risk', align: 'end', width: 120 },
+  { title: 'Actions', key: 'actions', align: 'center', width: 100, sortable: false }
 ]
 
 function onRowClick(event: Event, { item }: { item: Host }) {

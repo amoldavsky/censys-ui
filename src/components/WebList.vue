@@ -39,6 +39,16 @@
         </v-chip>
       </template>
 
+      <template #item.actions="{ item }">
+        <v-btn
+          icon="mdi-delete"
+          size="small"
+          color="error"
+          variant="text"
+          @click.stop="$emit('delete', item)"
+        />
+      </template>
+
       <template #bottom></template>
     </v-data-table>
   </div>
@@ -59,12 +69,17 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false
 })
 
+const emit = defineEmits<{
+  delete: [webAsset: WebAsset]
+}>()
+
 const headers = [
   { title: 'Domain', key: 'id', width: 200 },
   { title: 'Common Name', key: 'subject.common_name', width: 200 },
   { title: 'Certificate Authority', key: 'certificate_authority', width: 200 },
   { title: 'Status', key: 'validity_period', width: 120 },
-  { title: 'Risk Level', key: 'security_analysis', align: 'end', width: 120 }
+  { title: 'Risk Level', key: 'security_analysis', align: 'end', width: 120 },
+  { title: 'Actions', key: 'actions', align: 'center', width: 100, sortable: false }
 ]
 
 function onRowClick(event: Event, { item }: { item: WebAsset }) {

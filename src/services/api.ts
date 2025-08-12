@@ -627,6 +627,62 @@ class ApiService {
     return response
   }
 
+  async deleteHostAsset(ip: string): Promise<{ success: boolean; message: string }> {
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            success: true,
+            message: `Host asset ${ip} deleted successfully`
+          })
+        }, 500) // Simulate network delay
+      })
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/assets/hosts/${ip}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Host asset deletion failed:', error)
+      throw error
+    }
+  }
+
+  async deleteWebAsset(domain: string): Promise<{ success: boolean; message: string }> {
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            success: true,
+            message: `Web asset ${domain} deleted successfully`
+          })
+        }, 500) // Simulate network delay
+      })
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/assets/web/${encodeURIComponent(domain)}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Web asset deletion failed:', error)
+      throw error
+    }
+  }
+
   async getHostSecuritySummary(ip: string): Promise<SecuritySummaryResponse> {
     if (USE_MOCK_DATA) {
       return new Promise((resolve) => {

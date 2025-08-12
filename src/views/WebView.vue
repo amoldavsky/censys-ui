@@ -42,6 +42,37 @@
       {{ uploadSuccess }}
     </v-alert>
 
+    <!-- Delete Confirmation Dialog -->
+    <v-dialog v-model="deleteDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-h6">
+          Confirm Deletion
+        </v-card-title>
+        <v-card-text>
+          Are you sure you want to delete web asset <strong>{{ itemToDelete?.id }}</strong>?
+          This action cannot be undone.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="grey"
+            variant="text"
+            @click="deleteDialog = false"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="error"
+            variant="text"
+            @click="deleteItem"
+            :loading="deleting"
+          >
+            Delete
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <div class="table-container">
       <v-data-table
         :headers="headers"
@@ -103,6 +134,17 @@
           <span v-else class="text-caption">N/A</span>
         </template>
 
+        <template #item.actions="{ item }">
+          <v-btn
+            icon="mdi-delete"
+            size="small"
+            color="error"
+            variant="text"
+            @click.stop="confirmDelete(item)"
+            :loading="deletingItems.has(item.id)"
+          />
+        </template>
+
         <template #bottom></template>
       </v-data-table>
     </div>
@@ -125,12 +167,19 @@ const selectedFile = ref<File | null>(null)
 const selectedFileName = ref<string>('')
 const fileInput = ref<HTMLInputElement>()
 
+// Delete functionality
+const deleteDialog = ref(false)
+const deleting = ref(false)
+const deletingItems = ref(new Set<string>())
+const itemToDelete = ref<WebAsset | null>(null)
+
 const headers = [
   { title: 'Domain', key: 'id', width: 200 },
   { title: 'All Domains', key: 'domains', width: 250 },
   { title: 'Certificate Authority', key: 'certificate_authority', width: 200 },
   { title: 'Status', key: 'status', width: 120 },
-  { title: 'Risk Level', key: 'risks', align: 'end', width: 120 }
+  { title: 'Risk Level', key: 'risks', align: 'end', width: 120 },
+  { title: 'Actions', key: 'actions', align: 'center', width: 100, sortable: false }
 ]
 
 async function loadWebAssets() {
@@ -246,6 +295,38 @@ function getRiskColor(riskLevel: string): string {
     case 'medium': return 'info'
     case 'low': return 'success'
     default: return 'grey'
+  }
+}
+
+function confirmDelete(item: WebAsset) {
+  itemToDelete.value = item
+  deleteDialog.value = true
+}
+
+async function deleteItem() {
+  if (!itemToDelete.value) return
+
+  deleting.value = true
+  deletingItems.value.add(itemToDelete.value.id)
+  error.value = null
+
+  try {
+    await apiService.deleteWebAsset(itemToDelete.value.id)
+
+    // Remove the item from the local array
+    webAssets.value = webAssets.value.filter(asset => asset.id !== itemToDelete.value!.id)
+
+    uploadSuccess.value = `Web asset ${itemToDelete.value.id} deleted successfully`
+    deleteDialog.value = false
+    itemToDelete.value = null
+  } catch (err) {
+    error.value = `Failed to delete web asset ${itemToDelete.value.id}. Please try again.`
+    console.error('Error deleting web asset:', err)
+  } finally {
+    deleting.value = false
+    if (itemToDelete.value) {
+      deletingItems.value.delete(itemToDelete.value.id)
+    }
   }
 }
 

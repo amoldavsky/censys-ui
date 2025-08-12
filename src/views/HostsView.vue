@@ -42,6 +42,37 @@
       {{ uploadSuccess }}
     </v-alert>
 
+    <!-- Delete Confirmation Dialog -->
+    <v-dialog v-model="deleteDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-h6">
+          Confirm Deletion
+        </v-card-title>
+        <v-card-text>
+          Are you sure you want to delete host asset <strong>{{ itemToDelete?.ip }}</strong>?
+          This action cannot be undone.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="grey"
+            variant="text"
+            @click="deleteDialog = false"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="error"
+            variant="text"
+            @click="deleteItem"
+            :loading="deleting"
+          >
+            Delete
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <div class="table-container">
       <v-data-table
         :headers="headers"
@@ -85,12 +116,25 @@
 
         <template #item.risk="{ item }">
           <v-chip
-            :color="getRiskColor(item.risk)"
+            v-if="item.risk"
+            :color="getRiskColor(item.risk || '')"
             size="small"
             variant="flat"
           >
             {{ item.risk.toUpperCase() }}
           </v-chip>
+          <span v-else class="text-caption">N/A</span>
+        </template>
+
+        <template #item.actions="{ item }">
+          <v-btn
+            icon="mdi-delete"
+            size="small"
+            color="error"
+            variant="text"
+            @click.stop="confirmDelete(item)"
+            :loading="deletingItems.has(item.ip)"
+          />
         </template>
 
         <template #bottom></template>
@@ -115,12 +159,19 @@ const selectedFile = ref<File | null>(null)
 const selectedFileName = ref<string>('')
 const fileInput = ref<HTMLInputElement>()
 
+// Delete functionality
+const deleteDialog = ref(false)
+const deleting = ref(false)
+const deletingItems = ref(new Set<string>())
+const itemToDelete = ref<Host | null>(null)
+
 const headers = [
   { title: 'IP Address', key: 'ip', width: 150 },
   { title: 'Location', key: 'location', width: 200 },
   { title: 'AS Name', key: 'as_name', width: 250 },
   { title: 'Services', key: 'services', width: 250 },
-  { title: 'Risk Level', key: 'risk', align: 'end', width: 120 }
+  { title: 'Risk Level', key: 'risk', align: 'end', width: 120 },
+  { title: 'Actions', key: 'actions', align: 'center', width: 100, sortable: false }
 ]
 
 async function loadHosts() {
@@ -226,6 +277,38 @@ function getRiskColor(riskLevel: string): string {
     case 'medium': return 'info'
     case 'low': return 'success'
     default: return 'grey'
+  }
+}
+
+function confirmDelete(item: Host) {
+  itemToDelete.value = item
+  deleteDialog.value = true
+}
+
+async function deleteItem() {
+  if (!itemToDelete.value) return
+
+  deleting.value = true
+  deletingItems.value.add(itemToDelete.value.ip)
+  error.value = null
+
+  try {
+    await apiService.deleteHostAsset(itemToDelete.value.ip)
+
+    // Remove the item from the local array
+    hosts.value = hosts.value.filter(host => host.ip !== itemToDelete.value!.ip)
+
+    uploadSuccess.value = `Host asset ${itemToDelete.value.ip} deleted successfully`
+    deleteDialog.value = false
+    itemToDelete.value = null
+  } catch (err) {
+    error.value = `Failed to delete host asset ${itemToDelete.value.ip}. Please try again.`
+    console.error('Error deleting host:', err)
+  } finally {
+    deleting.value = false
+    if (itemToDelete.value) {
+      deletingItems.value.delete(itemToDelete.value.ip)
+    }
   }
 }
 
