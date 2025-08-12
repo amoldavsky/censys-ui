@@ -11,6 +11,18 @@ const server = Bun.serve({
 
     console.log(`[${new Date().toISOString()}] ${req.method} ${pathname}`);
 
+    // Health check endpoint
+    if (pathname === "/health" || pathname === "/_health") {
+      return new Response(JSON.stringify({
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        dist: dist,
+        indexExists: await Bun.file(join(dist, "index.html")).exists()
+      }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
     // Handle root path
     if (pathname === "/") {
       console.log(`Serving root -> index.html`);

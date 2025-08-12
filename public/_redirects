@@ -1,6 +1,3 @@
-# SPA routing - redirect all non-file requests to index.html
-# This handles direct URL access like /hosts/192.168.1.100
+# SPA routing for Render static site
+# Redirect all routes to index.html for client-side routing
 /*    /index.html   200
-
-# Alternative format that some platforms prefer
-# /* /index.html 200

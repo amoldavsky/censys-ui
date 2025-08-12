@@ -25,7 +25,7 @@ The application uses the `VITE_API_URL` environment variable to configure the AP
    - Variable: `API_URL`
    - Value: `https://your-api-url.com`
 
-3. **Start Command:** `npm run serve`
+3. **Publish Directory:** `dist` (for static site deployment)
 
 This way, the `API_URL` runtime environment variable gets passed to `VITE_API_URL` during the build process.
 
@@ -134,10 +134,10 @@ Then set `API_URL` in Render's environment variables.
 
 **Root Cause:** This is a common SPA (Single Page Application) routing issue. When you navigate directly to `/hosts`, the server looks for a file at that path, but only `/index.html` exists.
 
-**Solutions Implemented:**
+**Solution:**
 
-1. **Server-side fallback:** The server now serves `index.html` for all non-static routes
-2. **_redirects file:** Added `public/_redirects` file that tells Render to redirect all routes to `index.html`
+1. **_redirects file:** Added `public/_redirects` with `/* /index.html 200` rule
+2. **Static site deployment:** Deploy as static site, not Node.js service
 
 **Testing:** After deployment, these URLs should work:
 - `https://your-app.onrender.com/hosts`
@@ -147,22 +147,22 @@ Then set `API_URL` in Render's environment variables.
 
 **Debugging SPA Routing Issues:**
 
-1. **Check Render Logs:**
-   - Go to Render Dashboard → Your Service → Logs
-   - Look for messages like:
-     - `🔄 SPA route: /hosts/192.168.1.100 -> index.html`
-     - `✓ Serving static file: /assets/...`
-     - `❌ CRITICAL: index.html not found`
+1. **Verify Deployment Type:**
+   - Make sure you're deploying as a **Static Site**, not a Web Service
+   - Static sites automatically process `_redirects` files
 
-2. **Common Issues:**
-   - Build failed: Check build logs for errors
-   - Missing index.html: Ensure `npm run build` completed successfully
-   - Wrong build command: Should be `VITE_API_URL=$API_URL npm run build`
+2. **Check Build:**
+   - Ensure build command is: `VITE_API_URL=$API_URL npm run build`
+   - Verify `dist` folder contains `index.html` and `_redirects`
+   - Publish directory should be: `dist`
 
 3. **Test Locally:**
    ```bash
    npm run build
-   npm run serve
+   # Check that dist/_redirects exists
+   ls dist/_redirects
+   # Serve locally to test
+   npx serve dist
    # Then test: http://localhost:3000/hosts/192.168.1.100
    ```
 
