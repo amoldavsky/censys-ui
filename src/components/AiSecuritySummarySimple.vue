@@ -50,58 +50,42 @@
 
       <!-- Summary Content -->
       <div v-else-if="summary" class="summary-content">
-        <!-- Severity Badge and Summary -->
-        <div class="d-flex align-start mb-4">
-          <v-chip
-            :color="getSeverityColor(summary.severity)"
-            variant="flat"
-            size="large"
-            class="mr-3 mt-1 flex-shrink-0"
-          >
-            <v-icon left size="small">{{ getSeverityIcon(summary.severity) }}</v-icon>
-            {{ summary.severity.toUpperCase() }}
-          </v-chip>
-          <div class="flex-grow-1">
-            <p class="text-body-1 mb-0">{{ summary.summary }}</p>
+        <div class="d-flex align-center justify-space-between mb-4">
+          <div class="d-flex align-center">
+            <v-icon :color="getSeverityColor(summary.severity)" class="mr-2">
+              {{ getSeverityIcon(summary.severity) }}
+            </v-icon>
+            <span class="text-h6">{{ summary.severity?.toUpperCase() || 'UNKNOWN' }} RISK</span>
           </div>
+          <v-chip color="success" size="small" variant="flat">
+            AI Analysis Complete
+          </v-chip>
         </div>
 
-        <!-- Key Findings -->
+        <!-- Summary Text -->
+        <div v-if="summary.summary" class="mb-4">
+          <h4 class="text-subtitle-1 font-weight-bold mb-2">Summary:</h4>
+          <p class="text-body-1">{{ summary.summary }}</p>
+        </div>
+
         <div v-if="summary.findings && summary.findings.length > 0" class="mb-4">
-          <h4 class="text-subtitle-1 mb-2">
-            <v-icon class="mr-1" size="small">mdi-magnify</v-icon>
-            Key Findings
-          </h4>
+          <h4 class="text-subtitle-1 font-weight-bold mb-2">Key Findings:</h4>
           <ul class="findings-list">
-            <li v-for="finding in summary.findings" :key="finding" class="mb-1">
-              {{ finding }}
-            </li>
+            <li v-for="finding in summary.findings" :key="finding">{{ finding }}</li>
           </ul>
         </div>
 
-        <!-- Recommendations -->
         <div v-if="summary.recommendations && summary.recommendations.length > 0" class="mb-4">
-          <h4 class="text-subtitle-1 mb-2">
-            <v-icon class="mr-1" size="small">mdi-lightbulb-outline</v-icon>
-            Recommendations
-          </h4>
+          <h4 class="text-subtitle-1 font-weight-bold mb-2">Recommendations:</h4>
           <ul class="recommendations-list">
-            <li v-for="recommendation in summary.recommendations" :key="recommendation" class="mb-1">
-              {{ recommendation }}
-            </li>
+            <li v-for="recommendation in summary.recommendations" :key="recommendation">{{ recommendation }}</li>
           </ul>
         </div>
 
-        <!-- Evidence Extras -->
-        <div v-if="summary.evidence_extras && summary.evidence_extras.length > 0" class="mb-4">
-          <h4 class="text-subtitle-1 mb-2">
-            <v-icon class="mr-1" size="small">mdi-information-outline</v-icon>
-            Additional Evidence
-          </h4>
+        <div v-if="summary.assumptions && summary.assumptions.length > 0" class="mb-4">
+          <h4 class="text-subtitle-1 font-weight-bold mb-2">Assumptions:</h4>
           <ul class="evidence-list">
-            <li v-for="extra in summary.evidence_extras" :key="extra" class="mb-1">
-              {{ extra }}
-            </li>
+            <li v-for="assumption in summary.assumptions" :key="assumption">{{ assumption }}</li>
           </ul>
         </div>
 
@@ -122,16 +106,11 @@
               </v-icon>
             </v-btn>
           </div>
-          
+
           <v-expand-transition>
             <div v-show="showDetails" class="mt-3">
-              <div v-if="summary.assumptions && summary.assumptions.length > 0" class="mb-3">
-                <h5 class="text-caption font-weight-bold mb-1">Assumptions:</h5>
-                <ul class="text-caption">
-                  <li v-for="assumption in summary.assumptions" :key="assumption">
-                    {{ assumption }}
-                  </li>
-                </ul>
+              <div class="text-caption text-medium-emphasis mb-2">
+                Analysis based on available data fields. Missing fields may limit assessment accuracy.
               </div>
 
               <div v-if="summary.data_coverage && summary.data_coverage.missing_fields && summary.data_coverage.missing_fields.length > 0">
@@ -157,8 +136,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { apiService, type SecuritySummary } from '@/services/api'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { apiService } from '@/services/api'
+
+// Define the actual API response structure
+interface ActualSecuritySummary {
+  id: string
+  summary: string
+  severity: string
+  evidence: any
+  findings: string[]
+  recommendations: string[]
+  assumptions: string[]
+  data_coverage: {
+    fields_present_pct: number
+    missing_fields: string[]
+  }
+  created_at: string
+  updated_at: string
+  _id: string
+  status: string
+}
 
 interface Props {
   domain?: string
@@ -172,21 +170,35 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const summary = ref<SecuritySummary | null>(null)
-const loading = ref(false)
+const loading = ref(true)
 const error = ref<string | null>(null)
+const summary = ref<ActualSecuritySummary | null>(null)
 const showDetails = ref(false)
-const pollTimeoutId = ref<number | null>(null)
 const isUnmounting = ref(false)
+const pollTimeoutId = ref<number | null>(null)
+
+function getSeverityColor(severity: string): string {
+  switch (severity) {
+    case 'critical': return 'error'
+    case 'high': return 'warning'
+    case 'medium': return 'info'
+    case 'low': return 'success'
+    default: return 'grey'
+  }
+}
+
+function getSeverityIcon(severity: string): string {
+  switch (severity) {
+    case 'critical': return 'mdi-alert-circle'
+    case 'high': return 'mdi-alert'
+    case 'medium': return 'mdi-alert-outline'
+    case 'low': return 'mdi-check-circle'
+    default: return 'mdi-help-circle'
+  }
+}
 
 async function loadSecuritySummary() {
   if (isUnmounting.value) return
-
-  // Cancel any existing polling first
-  if (pollTimeoutId.value) {
-    clearTimeout(pollTimeoutId.value)
-    pollTimeoutId.value = null
-  }
 
   loading.value = true
   error.value = null
@@ -206,6 +218,7 @@ async function loadSecuritySummary() {
 
     if (!response.success) {
       error.value = response.error || 'Security analysis failed'
+      loading.value = false
       return
     }
 
@@ -215,7 +228,7 @@ async function loadSecuritySummary() {
       pollForCompletion()
     } else {
       // Data is complete summary
-      summary.value = response.data as SecuritySummary
+      summary.value = response.data as ActualSecuritySummary
       loading.value = false
       // Emit the summary ID for chat context
       emit('summaryLoaded', summary.value.id)
@@ -234,7 +247,6 @@ async function pollForCompletion() {
   let attempts = 0
 
   const poll = async () => {
-    // Early exit if component is unmounting
     if (isUnmounting.value) {
       pollTimeoutId.value = null
       return
@@ -279,7 +291,7 @@ async function pollForCompletion() {
       } else {
         // Data is complete summary
         if (!isUnmounting.value) {
-          summary.value = response.data as SecuritySummary
+          summary.value = response.data as ActualSecuritySummary
           loading.value = false
           // Emit the summary ID for chat context
           emit('summaryLoaded', summary.value.id)
@@ -303,63 +315,13 @@ function retryAnalysis() {
   loadSecuritySummary()
 }
 
-function getSeverityColor(severity: string): string {
-  switch (severity) {
-    case 'critical': return 'error'
-    case 'high': return 'warning'
-    case 'medium': return 'info'
-    case 'low': return 'success'
-    default: return 'grey'
-  }
-}
-
-function getSeverityIcon(severity: string): string {
-  switch (severity) {
-    case 'critical': return 'mdi-alert-circle'
-    case 'high': return 'mdi-alert'
-    case 'medium': return 'mdi-alert-outline'
-    case 'low': return 'mdi-check-circle'
-    default: return 'mdi-help-circle'
-  }
-}
-
-// Watch for domain or IP changes - using a safer approach
-let currentDomain = props.domain
-let currentIp = props.ip
-
-const stopWatcher = watch([() => props.domain, () => props.ip], ([newDomain, newIp]) => {
-  if (isUnmounting.value) return
-
-  // Only reload if the values actually changed
-  if (newDomain !== currentDomain || newIp !== currentIp) {
-    currentDomain = newDomain
-    currentIp = newIp
-
-    // Cancel any existing polling before starting new request
-    if (pollTimeoutId.value) {
-      clearTimeout(pollTimeoutId.value)
-      pollTimeoutId.value = null
-    }
-
-    loadSecuritySummary()
-  }
-}, { immediate: false })
-
 onMounted(() => {
-  // Use nextTick to ensure component is fully mounted
-  nextTick(() => {
-    if (!isUnmounting.value) {
-      loadSecuritySummary()
-    }
-  })
+  loadSecuritySummary()
 })
 
 onBeforeUnmount(() => {
   // Set unmounting flag to prevent any new operations
   isUnmounting.value = true
-
-  // Stop the watcher
-  stopWatcher()
 
   // Clean up any pending polling timeout
   if (pollTimeoutId.value) {

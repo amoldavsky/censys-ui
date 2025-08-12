@@ -102,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch, computed } from 'vue'
+import { ref, nextTick, watch, computed, onBeforeUnmount } from 'vue'
 import { apiService } from '@/services/api'
 
 interface ChatMessage {
@@ -129,11 +129,12 @@ const messages = ref<ChatMessage[]>([])
 const inputMessage = ref('')
 const loading = ref(false)
 const messagesContainer = ref<HTMLElement>()
+const isUnmounting = ref(false)
 
 // No system context needed - asset data passed separately
 
 async function sendMessage() {
-  if (!inputMessage.value.trim() || loading.value) return
+  if (!inputMessage.value.trim() || loading.value || isUnmounting.value) return
   
   const userMessage: ChatMessage = {
     role: 'user',
@@ -165,20 +166,26 @@ async function sendMessage() {
       timestamp: new Date()
     }
     
-    messages.value.push(aiMessage)
+    if (!isUnmounting.value) {
+      messages.value.push(aiMessage)
+    }
   } catch (error) {
     console.error('Chat API error:', error)
-    
-    const errorMessage: ChatMessage = {
-      role: 'assistant',
-      content: 'Sorry, I\'m having trouble connecting right now. Please try again later.',
-      timestamp: new Date()
+
+    if (!isUnmounting.value) {
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: 'Sorry, I\'m having trouble connecting right now. Please try again later.',
+        timestamp: new Date()
+      }
+
+      messages.value.push(errorMessage)
     }
-    
-    messages.value.push(errorMessage)
   } finally {
-    loading.value = false
-    await scrollToBottom()
+    if (!isUnmounting.value) {
+      loading.value = false
+      await scrollToBottom()
+    }
   }
 }
 
@@ -189,8 +196,9 @@ function handleEnter(event: KeyboardEvent) {
 }
 
 async function scrollToBottom() {
+  if (isUnmounting.value) return
   await nextTick()
-  if (messagesContainer.value) {
+  if (messagesContainer.value && !isUnmounting.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
   }
 }
@@ -210,6 +218,11 @@ function sendSuggestion(text: string) {
 
 // All messages are displayed (no system messages)
 const displayMessages = computed(() => messages.value)
+
+onBeforeUnmount(() => {
+  // Set flag to prevent any async operations from updating state
+  isUnmounting.value = true
+})
 </script>
 
 <style scoped>

@@ -2,10 +2,10 @@
   <div class="page">
     <div class="header">
       <div class="breadcrumb">
-        <v-btn 
-          variant="text" 
-          prepend-icon="mdi-arrow-left" 
-          @click="$router.push('/hosts')"
+        <v-btn
+          variant="text"
+          prepend-icon="mdi-arrow-left"
+          @click="navigateBack"
           class="back-btn"
         >
           Back to Hosts
@@ -37,8 +37,8 @@
 
     <div v-else-if="host" class="content-with-chat">
       <div class="main-content">
-        <!-- AI Security Summary - Show when host is loaded -->
-        <AiSecuritySummary :ip="ip" @summary-loaded="onSummaryLoaded" />
+        <!-- AI Security Summary - Using simplified version -->
+        <AiSecuritySummarySimple :key="`host-summary-${ip}`" :ip="ip" @summary-loaded="onSummaryLoaded" />
 
         <!-- Basic Information -->
         <v-card class="info-card mb-6" variant="flat">
@@ -192,6 +192,7 @@
 
       <!-- AI Chat Component -->
       <AiChat
+        :key="`host-chat-${ip}`"
         asset-type="host"
         :asset-data="host"
         :suggestions="hostSuggestions"
@@ -202,15 +203,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { apiService, type Host, type Location } from '@/services/api'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import AiChat from '@/components/AiChat.vue'
-import AiSecuritySummary from '@/components/AiSecuritySummary.vue'
+import AiSecuritySummarySimple from '@/components/AiSecuritySummarySimple.vue'
 
 const route = useRoute()
+const router = useRouter()
 const ip = route.params.ip as string
 
 const host = ref<Host | null>(null)
@@ -220,6 +222,7 @@ const expandedPanels = ref<number[]>([])
 const mapContainer = ref<HTMLElement>()
 const map = ref<L.Map | null>(null)
 const summaryId = ref<string | null>(null)
+const mapInitTimeoutId = ref<number | null>(null)
 
 // AI Chat suggestions for host assets
 const hostSuggestions = [
@@ -246,8 +249,9 @@ async function loadHostDetails() {
 
     // Initialize map after host data is loaded
     await nextTick()
-    setTimeout(() => {
+    mapInitTimeoutId.value = window.setTimeout(() => {
       initializeMap()
+      mapInitTimeoutId.value = null
     }, 100)
   } catch (err) {
     error.value = `Failed to load details for host ${ip}. Please try again.`
@@ -345,8 +349,26 @@ function onSummaryLoaded(id: string) {
   summaryId.value = id
 }
 
+function navigateBack() {
+  router.push('/hosts')
+}
+
 onMounted(() => {
   loadHostDetails()
+})
+
+onBeforeUnmount(() => {
+  // Clean up any pending map initialization timeout
+  if (mapInitTimeoutId.value) {
+    clearTimeout(mapInitTimeoutId.value)
+    mapInitTimeoutId.value = null
+  }
+
+  // Clean up the Leaflet map to prevent memory leaks and unmounting errors
+  if (map.value) {
+    map.value.remove()
+    map.value = null
+  }
 })
 </script>
 
@@ -359,6 +381,10 @@ onMounted(() => {
 
 .content-with-chat {
   margin-right: 320px; /* Make space for fixed chat */
+}
+
+.main-content-only {
+  margin-right: 0; /* No chat component */
 }
 
 .main-content {
