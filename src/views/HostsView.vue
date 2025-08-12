@@ -128,12 +128,13 @@
 
         <template #item.actions="{ item }">
           <v-btn
-            icon="mdi-delete"
+            :icon="getSummaryIcon(item.ip)"
             size="small"
             color="error"
             variant="text"
             @click.stop="confirmDelete(item)"
             :loading="deletingItems.has(item.ip)"
+            :class="{ 'spinning': isSummaryProcessing(item.ip) }"
           />
         </template>
 
@@ -144,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiService, type Host } from '@/services/api'
 
@@ -165,6 +166,10 @@ const deleting = ref(false)
 const deletingItems = ref(new Set<string>())
 const itemToDelete = ref<Host | null>(null)
 
+// Summary status tracking
+const summaryStatuses = ref(new Map<string, 'pending' | 'processing' | 'complete'>())
+const summaryPollingInterval = ref<NodeJS.Timeout | null>(null)
+
 const headers = [
   { title: 'IP Address', key: 'ip', width: 150 },
   { title: 'Location', key: 'location', width: 200 },
@@ -180,6 +185,8 @@ async function loadHosts() {
 
   try {
     hosts.value = await apiService.getHostAssets()
+    // Start polling summary statuses for all hosts
+    startSummaryPolling()
   } catch (err) {
     error.value = 'Failed to load host assets. Please try again.'
     console.error('Error loading hosts:', err)
@@ -312,8 +319,71 @@ async function deleteItem() {
   }
 }
 
+// Summary status functions
+function getSummaryIcon(ip: string): string {
+  const status = summaryStatuses.value.get(ip)
+  return status === 'processing' || status === 'pending' ? 'mdi-loading' : 'mdi-delete'
+}
+
+function isSummaryProcessing(ip: string): boolean {
+  const status = summaryStatuses.value.get(ip)
+  return status === 'processing' || status === 'pending'
+}
+
+async function checkSummaryStatus(ip: string) {
+  try {
+    const response = await apiService.getHostSecuritySummary(ip)
+    if (response.success) {
+      if ('status' in response.data) {
+        // Response contains only status (pending/processing)
+        summaryStatuses.value.set(ip, response.data.status)
+      } else {
+        // Response contains full summary (complete)
+        summaryStatuses.value.set(ip, response.data.status)
+      }
+    }
+  } catch (error) {
+    // If summary doesn't exist yet, assume it's pending
+    summaryStatuses.value.set(ip, 'pending')
+  }
+}
+
+function startSummaryPolling() {
+  // Clear existing interval
+  if (summaryPollingInterval.value) {
+    clearInterval(summaryPollingInterval.value)
+  }
+
+  // Poll every 3 seconds
+  summaryPollingInterval.value = setInterval(async () => {
+    for (const host of hosts.value) {
+      const currentStatus = summaryStatuses.value.get(host.ip)
+      // Only poll if status is not complete
+      if (currentStatus !== 'complete') {
+        await checkSummaryStatus(host.ip)
+      }
+    }
+  }, 3000)
+
+  // Initial check for all hosts
+  hosts.value.forEach(host => {
+    checkSummaryStatus(host.ip)
+  })
+}
+
+function stopSummaryPolling() {
+  if (summaryPollingInterval.value) {
+    clearInterval(summaryPollingInterval.value)
+    summaryPollingInterval.value = null
+  }
+}
+
 onMounted(() => {
   loadHosts()
+})
+
+onUnmounted(() => {
+  stopSummaryPolling()
 })
 </script>
 
@@ -372,6 +442,16 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
+}
+
+/* Spinning animation for processing summaries */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {

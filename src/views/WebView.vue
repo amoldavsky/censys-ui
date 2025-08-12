@@ -136,12 +136,13 @@
 
         <template #item.actions="{ item }">
           <v-btn
-            icon="mdi-delete"
+            :icon="getSummaryIcon(item.id)"
             size="small"
             color="error"
             variant="text"
             @click.stop="confirmDelete(item)"
             :loading="deletingItems.has(item.id)"
+            :class="{ 'spinning': isSummaryProcessing(item.id) }"
           />
         </template>
 
@@ -152,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiService, type WebAsset } from '@/services/api'
 
@@ -173,6 +174,10 @@ const deleting = ref(false)
 const deletingItems = ref(new Set<string>())
 const itemToDelete = ref<WebAsset | null>(null)
 
+// Summary status tracking
+const summaryStatuses = ref(new Map<string, 'pending' | 'processing' | 'complete'>())
+const summaryPollingInterval = ref<NodeJS.Timeout | null>(null)
+
 const headers = [
   { title: 'Domain', key: 'id', width: 200 },
   { title: 'All Domains', key: 'domains', width: 250 },
@@ -190,6 +195,8 @@ async function loadWebAssets() {
     webAssets.value = await apiService.getWebAssets()
     console.log('Loaded web assets:', webAssets.value)
     console.log('First web asset structure:', webAssets.value[0])
+    // Start polling summary statuses for all web assets
+    startSummaryPolling()
   } catch (err) {
     error.value = 'Failed to load web assets. Please try again.'
     console.error('Error loading web assets:', err)
@@ -330,8 +337,71 @@ async function deleteItem() {
   }
 }
 
+// Summary status functions
+function getSummaryIcon(domain: string): string {
+  const status = summaryStatuses.value.get(domain)
+  return status === 'processing' || status === 'pending' ? 'mdi-loading' : 'mdi-delete'
+}
+
+function isSummaryProcessing(domain: string): boolean {
+  const status = summaryStatuses.value.get(domain)
+  return status === 'processing' || status === 'pending'
+}
+
+async function checkSummaryStatus(domain: string) {
+  try {
+    const response = await apiService.getWebSecuritySummary(domain)
+    if (response.success) {
+      if ('status' in response.data) {
+        // Response contains only status (pending/processing)
+        summaryStatuses.value.set(domain, response.data.status)
+      } else {
+        // Response contains full summary (complete)
+        summaryStatuses.value.set(domain, response.data.status)
+      }
+    }
+  } catch (error) {
+    // If summary doesn't exist yet, assume it's pending
+    summaryStatuses.value.set(domain, 'pending')
+  }
+}
+
+function startSummaryPolling() {
+  // Clear existing interval
+  if (summaryPollingInterval.value) {
+    clearInterval(summaryPollingInterval.value)
+  }
+
+  // Poll every 3 seconds
+  summaryPollingInterval.value = setInterval(async () => {
+    for (const asset of webAssets.value) {
+      const currentStatus = summaryStatuses.value.get(asset.id)
+      // Only poll if status is not complete
+      if (currentStatus !== 'complete') {
+        await checkSummaryStatus(asset.id)
+      }
+    }
+  }, 3000)
+
+  // Initial check for all web assets
+  webAssets.value.forEach(asset => {
+    checkSummaryStatus(asset.id)
+  })
+}
+
+function stopSummaryPolling() {
+  if (summaryPollingInterval.value) {
+    clearInterval(summaryPollingInterval.value)
+    summaryPollingInterval.value = null
+  }
+}
+
 onMounted(() => {
   loadWebAssets()
+})
+
+onUnmounted(() => {
+  stopSummaryPolling()
 })
 </script>
 
@@ -390,6 +460,16 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
+}
+
+/* Spinning animation for processing summaries */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {
